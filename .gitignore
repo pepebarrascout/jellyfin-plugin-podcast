@@ -1,0 +1,21 @@
+## Build outputs
+bin/
+obj/
+publish/
+*.dll
+*.pdb
+*.json.config
+
+## IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Temp
+*.tmp
+*.log
