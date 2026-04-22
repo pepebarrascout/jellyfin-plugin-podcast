@@ -43,7 +43,7 @@
 
                 <div class="checkboxContainer checkboxContainer-withDescription">
                     <label>
-                        <input type="checkbox" id="podcastAutoPlaylist" />
+                        <input type="checkbox" id="podcastAutoPlaylist" is="emby-checkbox" />
                         <span>Incluir en lista de reproducción automática diaria</span>
                     </label>
                     <div class="fieldDescription checkboxFieldDescription">
@@ -55,15 +55,15 @@
                 <div id="feedValidationResult" style="padding: 0.6em 0.8em; margin: 0.8em 0; border-radius: 4px; display: none;"></div>
 
                 <div style="margin-top: 1em; display: flex; gap: 0.8em;">
-                    <button id="btnValidateFeed" type="button" class="emby-button raised" is="emby-button">
+                    <button id="btnValidateFeed" type="button" is="emby-button" class="raised">
                         <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span>
                         Validar Feed
                     </button>
-                    <button id="btnSaveFeed" type="button" class="emby-button raised" is="emby-button">
+                    <button id="btnSaveFeed" type="button" is="emby-button" class="raised button-submit">
                         <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">save</span>
                         Guardar
                     </button>
-                    <button id="btnCancelForm" type="button" class="emby-button raised" is="emby-button">
+                    <button id="btnCancelForm" type="button" is="emby-button" class="raised">
                         Cancelar
                     </button>
                 </div>
@@ -71,11 +71,11 @@
 
             <!-- Action Buttons -->
             <div style="margin-bottom: 1.5em; display: flex; gap: 0.8em; flex-wrap: wrap;">
-                <button id="btnAddFeed" type="button" class="emby-button raised" is="emby-button">
+                <button id="btnAddFeed" type="button" is="emby-button" class="raised">
                     <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">add</span>
                     Agregar Podcast
                 </button>
-                <button id="btnUpdateAll" type="button" class="emby-button raised" is="emby-button" style="background: #2a4a2a;">
+                <button id="btnUpdateAll" type="button" is="emby-button" class="raised" style="background: #2a4a2a;">
                     <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">sync</span>
                     Actualizar Todos
                 </button>
