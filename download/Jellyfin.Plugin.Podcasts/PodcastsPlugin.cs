@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Jellyfin.Plugin.Podcasts.Configuration;
+using MediaBrowser.Common.Configuration;
+using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 using Microsoft.Extensions.Logging;
@@ -40,6 +42,9 @@ public class PodcastsPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// </summary>
     public static readonly Guid PluginGuid = Guid.Parse("d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f90");
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PodcastsPlugin"/> class.
+    /// </summary>
     public PodcastsPlugin(
         IApplicationPaths applicationPaths,
         IXmlSerializer xmlSerializer,

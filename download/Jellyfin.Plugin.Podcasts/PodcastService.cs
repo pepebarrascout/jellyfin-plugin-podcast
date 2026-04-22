@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Jellyfin.Plugin.Podcasts.Configuration;
 using Jellyfin.Plugin.Podcasts.Model;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Podcasts;
@@ -40,6 +40,9 @@ public class PodcastService
     /// </summary>
     private static readonly XNamespace ContentNs = "http://purl.org/rss/1.0/modules/content/";
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PodcastService"/> class.
+    /// </summary>
     public PodcastService(
         ILogger<PodcastService> logger,
         IHttpClientFactory httpClientFactory,
@@ -70,14 +73,15 @@ public class PodcastService
         try
         {
             var virtualFolders = _libraryManager.GetVirtualFolders()
-                .Where(f => f.CollectionType == "music" || f.CollectionType == "mixed")
+                .Where(f => f.CollectionType == CollectionTypeOptions.music || f.CollectionType == CollectionTypeOptions.mixed)
                 .ToList();
 
             foreach (var folder in virtualFolders)
             {
-                if (folder.Locations != null && folder.Locations.Count > 0)
+                var locations = folder.Locations;
+                if (locations != null && locations.Any())
                 {
-                    var firstLocation = folder.Locations[0];
+                    var firstLocation = locations.First();
                     if (Directory.Exists(firstLocation))
                     {
                         return Path.Combine(firstLocation, "podcasts");
@@ -348,7 +352,8 @@ public class PodcastService
     /// Generates a daily auto-playlist containing all unlistened episodes from
     /// podcast feeds configured with IncludeInAutoPlaylist = true.
     /// Episodes are ordered chronologically by their publication date (oldest first).
-    /// The playlist is saved as a .m3u8 file in the podcasts base folder.
+    /// The playlist is saved in Jellyfin's native XML playlist format (playlist.xml)
+    /// inside a directory named "Podcast Auto Playlist" within the podcasts base folder.
     /// </summary>
     public async Task GenerateAutoPlaylistAsync()
     {
@@ -385,27 +390,35 @@ public class PodcastService
         var basePath = GetPodcastBasePath();
         Directory.CreateDirectory(basePath);
 
-        var playlistPath = Path.Combine(basePath, "Auto Playlist.m3u8");
+        var playlistDir = Path.Combine(basePath, "Podcast Auto Playlist");
+        Directory.CreateDirectory(playlistDir);
+        var playlistPath = Path.Combine(playlistDir, "playlist.xml");
 
         try
         {
-            using (var writer = new StreamWriter(playlistPath, false, System.Text.Encoding.UTF8))
-            {
-                writer.WriteLine("#EXTM3U");
-                writer.WriteLine("#PLAYLIST:Podcast Auto Playlist");
+            var doc = new XDocument(
+                new XDeclaration("1.0", "utf-8", "yes"),
+                new XElement("Item",
+                    new XElement("Added", DateTime.Now.ToString("MM/dd/yyyy HH:mm:ss")),
+                    new XElement("LockData", "false"),
+                    new XElement("LocalTitle", "Podcast Auto Playlist"),
+                    new XElement("Overview",
+                        "Lista de reproducción automática generada diariamente con los episodios " +
+                        "no escuchados de los podcasts configurados."),
+                    new XElement("PlaylistItems",
+                        playlistEpisodes.Select(episode =>
+                        {
+                            var podcastName = GetPodcastNameForFeed(episode.FeedUrl);
+                            var fullPath = Path.Combine(basePath, podcastName, episode.LocalFileName);
+                            return new XElement("PlaylistItem",
+                                new XElement("Path", fullPath));
+                        })
+                    ),
+                    new XElement("PlaylistMediaType", "Audio")
+                )
+            );
 
-                foreach (var episode in playlistEpisodes)
-                {
-                    var podcastName = GetPodcastNameForFeed(episode.FeedUrl);
-                    var relativePath = Path.Combine(podcastName, episode.LocalFileName);
-
-                    // Use forward slashes for M3U compatibility
-                    relativePath = relativePath.Replace('\\', '/');
-
-                    writer.WriteLine($"#EXTINF:-1,{podcastName} - {episode.Title}");
-                    writer.WriteLine(relativePath);
-                }
-            }
+            doc.Save(playlistPath);
 
             _logger.LogInformation("Auto-playlist generated with {Count} episodes at {Path}",
                 playlistEpisodes.Count, playlistPath);
@@ -416,94 +429,6 @@ public class PodcastService
         }
 
         await Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Validates that a URL points to a valid RSS feed that contains podcast episodes.
-    /// Downloads the URL content and checks for RSS structure and audio enclosures.
-    /// Returns a tuple indicating success/failure and an error message if applicable.
-    /// </summary>
-    public async Task<(bool IsValid, string ErrorMessage)> ValidateFeedUrlAsync(string url)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            return (false, "La URL del feed no puede estar vacía.");
-        }
-
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-        {
-            return (false, "La URL proporcionada no es válida.");
-        }
-
-        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
-        {
-            return (false, "La URL debe comenzar con http:// o https://.");
-        }
-
-        try
-        {
-            var client = _httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(15);
-
-            var response = await client.GetStringAsync(url);
-            var doc = XDocument.Parse(response);
-
-            // Check for RSS root element
-            var rssElement = doc.Element("rss");
-            if (rssElement == null)
-            {
-                return (false, "La URL no contiene un feed RSS válido.");
-            }
-
-            var channel = rssElement.Element("channel");
-            if (channel == null)
-            {
-                return (false, "El feed RSS no contiene un elemento <channel>.");
-            }
-
-            // Check for at least one item with an audio enclosure
-            var hasAudioItems = channel.Descendants("item")
-                .Any(item =>
-                {
-                    var enclosure = item.Element("enclosure");
-                    if (enclosure == null) return false;
-                    var encUrl = enclosure.Attribute("url")?.Value ?? string.Empty;
-                    var mimeType = enclosure.Attribute("type")?.Value ?? string.Empty;
-                    return mimeType.StartsWith("audio/") || IsAudioExtension(encUrl);
-                });
-
-            if (!hasAudioItems)
-            {
-                return (false, "El feed RSS no contiene episodios de audio válidos.");
-            }
-
-            // Check for duplicate in existing feeds
-            var config = PodcastsPlugin.Instance?.Configuration;
-            if (config != null)
-            {
-                var isDuplicate = config.Feeds.Any(f =>
-                    string.Equals(f.FeedUrl.TrimEnd('/'), url.TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
-
-                if (isDuplicate)
-                {
-                    return (false, "Este feed RSS ya está registrado.");
-                }
-            }
-
-            return (true, string.Empty);
-        }
-        catch (HttpRequestException)
-        {
-            return (false, "No se pudo conectar a la URL. Verifique que el enlace sea accesible.");
-        }
-        catch (TaskCanceledException)
-        {
-            return (false, "La conexión expiró. El servidor tardó demasiado en responder.");
-        }
-        catch (Exception ex)
-        {
-            return (false, $"Error al validar el feed: {ex.Message}");
-        }
     }
 
     /// <summary>

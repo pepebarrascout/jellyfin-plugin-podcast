@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Jellyfin.Plugin.Podcasts.Configuration;
 using Jellyfin.Plugin.Podcasts.Model;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Session;
 using Microsoft.Extensions.Hosting;
@@ -42,6 +43,9 @@ public class PodcastScheduler : IHostedService, IDisposable
     /// </summary>
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, PlaybackTracker> _activeTrackers = new();
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PodcastScheduler"/> class.
+    /// </summary>
     public PodcastScheduler(
         ILogger<PodcastScheduler> logger,
         ISessionManager sessionManager,
@@ -94,6 +98,9 @@ public class PodcastScheduler : IHostedService, IDisposable
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Releases resources used by the scheduler.
+    /// </summary>
     public void Dispose()
     {
         _timer?.Dispose();
@@ -241,7 +248,7 @@ public class PodcastScheduler : IHostedService, IDisposable
     /// Called when a user starts playback. Creates a tracker for the item
     /// to monitor whether it gets played to completion.
     /// </summary>
-    private void OnPlaybackStarted(object? sender, PlaybackStartEventArgs e)
+    private void OnPlaybackStarted(object? sender, PlaybackProgressEventArgs e)
     {
         try
         {
@@ -286,7 +293,7 @@ public class PodcastScheduler : IHostedService, IDisposable
 
             if (_activeTrackers.TryGetValue(itemPath, out var tracker))
             {
-                var positionTicks = e.PlaybackPositionTicks;
+                var positionTicks = e.PlaybackPositionTicks ?? 0;
                 if (positionTicks > tracker.MaxPositionTicks)
                 {
                     tracker.MaxPositionTicks = positionTicks;

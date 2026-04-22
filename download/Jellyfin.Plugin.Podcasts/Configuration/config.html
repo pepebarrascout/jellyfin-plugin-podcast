@@ -358,7 +358,7 @@
             document.getElementById('feedValidationResult').style.display = 'none';
         }
 
-        // --- Validate feed URL ---
+        // --- Validate feed URL (client-side RSS parsing) ---
         function validateFeed() {
             var url = document.getElementById('podcastFeedUrl').value.trim();
             if (!url) {
@@ -366,27 +366,104 @@
                 return;
             }
 
+            // Basic URL validation
+            try {
+                var uri = new URL(url);
+                if (uri.protocol !== 'http:' && uri.protocol !== 'https:') {
+                    showValidationResult(false, 'La URL debe comenzar con http:// o https://.');
+                    return;
+                }
+            } catch (e) {
+                showValidationResult(false, 'La URL proporcionada no es válida.');
+                return;
+            }
+
+            // Check for duplicate in existing feeds
+            if (currentConfig && currentConfig.feeds) {
+                var isDuplicate = currentConfig.feeds.some(function (f) {
+                    return f.feedUrl.replace(/\/+$/, '') === url.replace(/\/+$/, '');
+                });
+                if (isDuplicate) {
+                    showValidationResult(false, 'Este feed RSS ya está registrado.');
+                    return;
+                }
+            }
+
             hideValidationResult();
             var validateBtn = document.getElementById('btnValidateFeed');
             validateBtn.disabled = true;
             validateBtn.textContent = 'Validando...';
 
-            ApiClient.ajax({
-                type: 'GET',
-                url: ApiClient.getUrl('Plugins/Podcasts/ValidateFeed'),
-                data: { url: url },
-                dataType: 'json'
-            }).then(function (result) {
-                validateBtn.disabled = false;
-                validateBtn.innerHTML = '<span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span> Validar Feed';
-                isFormValidated = result.success;
-                showValidationResult(result.success, result.success ? 'Feed RSS válido y listo para agregar.' : result.error);
-            }).catch(function (error) {
-                validateBtn.disabled = false;
-                validateBtn.innerHTML = '<span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span> Validar Feed';
-                isFormValidated = false;
-                showValidationResult(false, 'Error de conexión al validar el feed.');
-            });
+            // Fetch and validate RSS directly from client
+            fetch(url, { mode: 'cors' })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                    }
+                    return response.text();
+                })
+                .then(function (text) {
+                    // Parse as XML
+                    var parser = new DOMParser();
+                    var doc = parser.parseFromString(text, 'text/xml');
+
+                    // Check for parse errors
+                    var parseError = doc.querySelector('parsererror');
+                    if (parseError) {
+                        throw new Error('El contenido no es XML válido.');
+                    }
+
+                    // Check for RSS root element
+                    var rssElement = doc.querySelector('rss');
+                    if (!rssElement) {
+                        throw new Error('La URL no contiene un feed RSS válido.');
+                    }
+
+                    var channel = rssElement.querySelector(':scope > channel');
+                    if (!channel) {
+                        throw new Error('El feed RSS no contiene un elemento <channel>.');
+                    }
+
+                    // Check for at least one item with an audio enclosure
+                    var items = channel.querySelectorAll('item');
+                    var hasAudio = false;
+                    var audioExtensions = ['.mp3', '.m4a', '.ogg', '.opus', '.wav', '.flac', '.aac', '.wma', '.mp4', '.webm'];
+
+                    for (var i = 0; i < items.length; i++) {
+                        var enclosure = items[i].querySelector('enclosure');
+                        if (enclosure) {
+                            var encUrl = enclosure.getAttribute('url') || '';
+                            var mimeType = (enclosure.getAttribute('type') || '').toLowerCase();
+                            var ext = encUrl.substring(encUrl.lastIndexOf('.')).toLowerCase();
+
+                            if (mimeType.indexOf('audio/') === 0 || audioExtensions.indexOf(ext) !== -1) {
+                                hasAudio = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!hasAudio) {
+                        throw new Error('El feed RSS no contiene episodios de audio válidos.');
+                    }
+
+                    // Validation passed
+                    validateBtn.disabled = false;
+                    validateBtn.innerHTML = '<span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span> Validar Feed';
+                    isFormValidated = true;
+                    showValidationResult(true, 'Feed RSS válido con ' + items.length + ' episodio(s) encontrado(s). Listo para agregar.');
+                })
+                .catch(function (error) {
+                    validateBtn.disabled = false;
+                    validateBtn.innerHTML = '<span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span> Validar Feed';
+                    isFormValidated = false;
+
+                    var msg = error.message || 'Error desconocido';
+                    if (error.message && error.message.indexOf('Failed to fetch') !== -1) {
+                        msg = 'No se pudo conectar. Verifica que el enlace sea accesible y permita CORS.';
+                    }
+                    showValidationResult(false, msg);
+                });
         }
 
         // --- Save feed (add or update) ---
