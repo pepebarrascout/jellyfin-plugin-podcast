@@ -8,6 +8,6 @@
   "version": "0.0.1.0",
   "changelog": "- Alpha release\n- RSS feed subscription management\n- Configurable update frequency (daily, weekly, monthly)\n- Auto-download of new episodes\n- Cover image extraction as folder.jpg\n- Auto-delete after 2 days of listening\n- Daily auto-playlist generation in Jellyfin XML format\n- Manual feed update buttons\n- Podcast detection via playback events",
   "targetAbi": "10.11.0.0",
-  "timestamp": "2026-04-22T16:00:55Z",
+  "timestamp": "2026-04-22T22:00:00Z",
   "imagePath": "logo.png"
 }
