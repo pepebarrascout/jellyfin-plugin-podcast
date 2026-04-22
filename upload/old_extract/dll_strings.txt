@@ -1,118 +1,797 @@
+!This program cannot be run in DOS mode.
+.text
+`.rsrc
+@.reloc
+,/(A
+ _XRg )UU
+X )UU
+,/(A
+_] )UU
+X )UU
+l	l#
+?Z7?
+l	l[#
+l	l[#
++8rL
+*~rb
+z^(A
+*r(A
+zJ(A
+z^(A
+-bsH
+	,=	oX
+,5	oX
+*BSJB
+v4.0.30319
+#Strings
+#GUID
+#Blob
+Y"$$
+ [$6
+	`*A
+	w-E
+	$*A
+	>-E
+&!>	
+	!	0	
+<>9__20_0
+<LoadEpisodeData>b__20_0
+<>9__0_0
+<RegisterServices>b__0_0
+<>9__11_0
+<GetPodcastBasePath>b__11_0
+<>9__21_0
+<SaveEpisodeData>b__21_0
+<>c__DisplayClass12_0
+<>c__DisplayClass22_0
+<>c__DisplayClass23_0
+<>9__14_0
+<ProcessAutoDeleteAsync>b__14_0
+<>c__DisplayClass14_0
+<>c__DisplayClass5_0
+<>9__16_0
+<GenerateAutoPlaylistAsync>b__16_0
+<>c__DisplayClass16_0
+<>c__DisplayClass6_0
+<>9__17_0
+<DownloadCoverImageAsync>b__17_0
+<>c__DisplayClass19_0
+<UpdateFeedAsync>b__0
+<ValidateFeed>b__0
+<UpdateFeed>b__0
+<GetPodcastNameForFeed>b__0
+<SanitizeFileName>b__0
+<CleanupOldDeletedRecords>b__0
+<>9__12_1
+<UpdateFeedAsync>b__12_1
+<>c__DisplayClass12_1
+<>9__14_1
+<ProcessAutoDeleteAsync>b__14_1
+<>9__16_1
+<GenerateAutoPlaylistAsync>b__16_1
+<>c__DisplayClass6_1
+<>9__17_1
+<DownloadCoverImageAsync>b__17_1
+<>8__1
+<ValidateFeed>b__1
+<>u__1
+Nullable`1
+IEnumerable`1
+IOrderedEnumerable`1
+Predicate`1
+Task`1
+BasePlugin`1
+ICollection`1
+IReadOnlyCollection`1
+AsyncTaskMethodBuilder`1
+ILogger`1
+EventHandler`1
+EqualityComparer`1
+TaskAwaiter`1
+IEnumerator`1
+HashSet`1
+IList`1
+<>z__ReadOnlySingleElementList`1
+IReadOnlyList`1
+CS$<>8__locals1
+<UpdateFeedAsync>d__12
+Int32
+<>9__17_2
+<DownloadCoverImageAsync>b__17_2
+<feed>5__2
+<response>5__2
+<toDelete>5__2
+<coverUrl>5__2
+<podcastFolder>5__2
+<updatedCount>5__2
+<now>5__2
+<UpdateFeedAsync>b__2
+<ProcessAutoDeleteAsync>b__2
+<GenerateAutoPlaylistAsync>b__2
+<>u__2
+<>f__AnonymousType0`2
+<>f__AnonymousType1`2
+Func`2
+ConcurrentDictionary`2
+<>9__16_3
+<GenerateAutoPlaylistAsync>b__16_3
+<>9__17_3
+<DownloadCoverImageAsync>b__17_3
+<dayOfWeek>5__3
+<contentStream>5__3
+<errors>5__3
+<client>5__3
+<>u__3
+<>7__wrap3
+<ProcessAutoDeleteAsync>d__14
+<UpdateFeedsAsync>d__14
+<>9__17_4
+<DownloadCoverImageAsync>b__17_4
+<doc>5__4
+<dayOfMonth>5__4
+<fileStream>5__4
+<GenerateAutoPlaylistAsync>b__4
+<UpdateAll>d__4
+<>u__4
+<>7__wrap4
+<GenerateAutoPlaylistAsync>d__15
+<feed>5__5
+<newRecords>5__5
+<UpdateFeed>d__5
+<>7__wrap5
+<ProcessAutoDeleteAsync>d__16
+<GenerateAutoPlaylistAsync>d__16
+<client2>5__6
+<feed>5__6
+<ValidateFeed>d__6
+<>7__wrap6
+<DownloadCoverImageAsync>d__17
+<>7__wrap7
+__StaticArrayInitTypeSize=18
+<DownloadFileAsync>d__18
+<record>5__8
+<Module>
+<PrivateImplementationDetails>
+3B85BF50F33371E1F23A74EAFDEE6D427A11F4968F55D0B1D9B58EE0BD32061E
+System.IO
+System.Collections.Generic.IList<T>.this[]
+System.Collections.Generic.IReadOnlyList<T>.this[]
+System.Collections.IList.this[]
+value__
+LoadEpisodeData
+SaveEpisodeData
+System.Collections.Generic
+UpdateFeedAsync
+DownloadCoverImageAsync
+DownloadFileAsync
+DisposeAsync
+ProcessAutoDeleteAsync
+GetStringAsync
+ReadAsStreamAsync
+CopyToAsync
+StopAsync
+UpdateFeedsAsync
+GetAsync
+StartAsync
+GenerateAutoPlaylistAsync
+Microsoft.AspNetCore.Mvc
+get_Id
+set_Id
+Load
+System.Collections.Generic.ICollection<T>.Add
+System.Collections.IList.Add
+ValidateFeed
+UpdateFeed
+GetPodcastNameForFeed
+PodcastFeed
+feed
+_moveNextCalled
+MarkEpisodeAsListened
+get_IsListened
+set_IsListened
+add_PlaybackStopped
+remove_PlaybackStopped
+OnPlaybackStopped
+get_IsDeleted
+set_IsDeleted
+AwaitUnsafeOnCompleted
+get_IsCompleted
+OnPlaybackStarted
+AppendFormatted
+System.Collections.ICollection.IsSynchronized
+System.Collections.ICollection.get_IsSynchronized
+PluginGuid
+NewGuid
+<message>i__Field
+<error>i__Field
+<success>i__Field
+<Id>k__BackingField
+<IsListened>k__BackingField
+<IsDeleted>k__BackingField
+<Instance>k__BackingField
+<Title>k__BackingField
+<Name>k__BackingField
+<LocalFileName>k__BackingField
+<DownloadDate>k__BackingField
+<PublishedDate>k__BackingField
+<LastUpdateDate>k__BackingField
+<ListenDate>k__BackingField
+<AutoDelete>k__BackingField
+<ItemPath>k__BackingField
+<FeedUrl>k__BackingField
+<EpisodeUrl>k__BackingField
+<Feeds>k__BackingField
+<RuntimeTicks>k__BackingField
+<MaxPositionTicks>k__BackingField
+<IncludeInAutoPlaylist>k__BackingField
+<Frequency>k__BackingField
+TrimEnd
+EpisodeRecord
+IsNullOrWhiteSpace
+XNamespace
+get_Namespace
+GetRequiredService
+IHostedService
+AddHostedService
+PodcastService
+_podcastService
+get_Instance
+set_Instance
+GetHashCode
+get_StatusCode
+HttpStatusCode
+EnsureSuccessStatusCode
+FileMode
+episode
+get_Message
+HttpResponseMessage
+get_message
+AddRange
+IEnumerable
+IDisposable
+Double
+RuntimeFieldHandle
+File
+get_Title
+set_Title
+CheckSchedule
+XName
+get_Name
+set_Name
+SanitizeFileName
+get_LocalFileName
+set_LocalFileName
+get_LocalName
+GetDirectoryName
+name
+ParseNullableDateTime
+ParseDateTime
+System.Runtime
+Combine
+IAsyncStateMachine
+SetStateMachine
+stateMachine
+ValueType
+get_CollectionType
+GetType
+FileShare
+Where
+Microsoft.AspNetCore.Mvc.Core
+get_InvariantCulture
+Capture
+ControllerBase
+System.IDisposable.Dispose
+TryParse
+get_Date
+get_DownloadDate
+set_DownloadDate
+get_PublishedDate
+set_PublishedDate
+get_LastUpdateDate
+set_LastUpdateDate
+cutoffDate
+get_ListenDate
+set_ListenDate
+ParseRssDate
+Create
+DebuggerBrowsableState
+<>1__state
+get_AutoDelete
+set_AutoDelete
+XAttribute
+CompilerGeneratedAttribute
+GuidAttribute
+DebuggableAttribute
+NullableAttribute
+DebuggerBrowsableAttribute
+AssemblyTitleAttribute
+AsyncStateMachineAttribute
+RouteAttribute
+TargetFrameworkAttribute
+DebuggerHiddenAttribute
+AssemblyFileVersionAttribute
+AssemblyInformationalVersionAttribute
+AssemblyConfigurationAttribute
+ApiControllerAttribute
+RefSafetyRulesAttribute
+CompilationRelaxationsAttribute
+AssemblyProductAttribute
+HttpPostAttribute
+NullableContextAttribute
+AssemblyCompanyAttribute
+FromQueryAttribute
+RuntimeCompatibilityAttribute
+get_Minute
+get_Value
+MinValue
+get_HasValue
+TryGetValue
+SetValue
+value
+Save
+System.Collections.Generic.ICollection<T>.Remove
+System.Collections.IList.Remove
+TryRemove
+System.Collections.IList.IsFixedSize
+System.Collections.IList.get_IsFixedSize
+SuppressFinalize
+System.Collections.Generic.IList<T>.IndexOf
+System.Collections.IList.IndexOf
+System.Threading
+Microsoft.Extensions.Logging
+System.Runtime.Versioning
+LogWarning
+ToString
+Substring
+Microsoft.Extensions.Hosting
+LogDebug
+get_Path
+get_DataPath
+_episodeDataPath
+_pluginDataPath
+set_EmbeddedResourcePath
+filePath
+GetPodcastBasePath
+basePath
+get_AbsolutePath
+get_ItemPath
+set_ItemPath
+itemPath
+GetPlaylistsFolderPath
+get_Length
+EndsWith
+StartsWith
+Jellyfin.Plugin.Podcasts.Api
+TimerCallback
+_dataLock
+get_DayOfWeek
+get_Task
+get_CompletedTask
+ValueTask
+AppendLiteral
+op_LessThanOrEqual
+MediaBrowser.Model
+Jellyfin.Plugin.Podcasts.Model
+System.ComponentModel
+UpdateAll
+RemoveAll
+Jellyfin.Plugin.Podcasts.dll
+Jellyfin.Plugin.Podcasts.Configuration.config.html
+encUrl
+get_FeedUrl
+set_FeedUrl
+feedUrl
+get_EpisodeUrl
+set_EpisodeUrl
+episodeUrl
+GetExtensionFromUrl
+FileStream
+System.Collections.Generic.IList<T>.get_Item
+System.Collections.Generic.IReadOnlyList<T>.get_Item
+System.Collections.IList.get_Item
+System.Collections.Generic.IList<T>.set_Item
+System.Collections.IList.set_Item
+BaseItem
+_item
+System
+Trim
+Enum
+op_LessThan
+TimeSpan
+CancellationToken
+cancellationToken
+BasePlugin
+PodcastsPlugin
+IsAudioExtension
+GetExtension
+get_Version
+MediaBrowser.Controller.Session
+LogInformation
+XDeclaration
+MediaBrowser.Common.Configuration
+Jellyfin.Plugin.Podcasts.Configuration
+get_Configuration
+SaveConfiguration
+BasePluginConfiguration
+System.Globalization
+MediaBrowser.Model.Serialization
+Microsoft.Extensions.DependencyInjection
+System.Reflection
+ICollection
+IServiceCollection
+serviceCollection
+op_Addition
+AutoDeleteOption
+HttpCompletionOption
+TaskCanceledException
+NotSupportedException
+IndexOutOfRangeException
+SetException
+HttpRequestException
+get_Description
+MediaBrowser.Common
+StringComparison
+AddSingleton
+System.Collections.Generic.ICollection<T>.CopyTo
+System.Collections.ICollection.CopyTo
+PluginPageInfo
+CultureInfo
+ExceptionDispatchInfo
+VirtualFolderInfo
+DirectoryInfo
+Microsoft.Extensions.Http
+System.Net.Http
+System.Xml.Linq
+System.Linq
+<message>j__TPar
+<error>j__TPar
+<success>j__TPar
+System.Collections.Generic.ICollection<T>.Clear
+System.Collections.IList.Clear
+ToStringAndClear
+Char
+IServiceProvider
+IFormatProvider
+AsyncTaskMethodBuilder
+<>t__builder
+GetPlaylistsFolder
+podcastFolder
+sender
+ISessionManager
+_sessionManager
+IPlaylistManager
+_playlistManager
+ILibraryManager
+_libraryManager
+ILogger
+_logger
+PlaybackTracker
+DefaultInterpolatedStringHandler
+MediaBrowser.Controller
+PodcastsApiController
+PodcastScheduler
+Timer
+_timer
+XContainer
+ValueTaskAwaiter
+GetAwaiter
+Enter
+Never
+IXmlSerializer
+xmlSerializer
+LogError
+get_error
+IEnumerator
+System.Collections.Generic.IEnumerable<T>.GetEnumerator
+System.Collections.IEnumerable.GetEnumerator
+IPluginServiceRegistrator
+PodcastsPluginServiceRegistrator
+.ctor
+.cctor
+Monitor
+dateStr
+get_Hour
+ItunesNs
+ContentNs
+System.Diagnostics
+get_Feeds
+set_Feeds
+autoDeleteFeeds
+playlistFeeds
+FromSeconds
+CleanupOldDeletedRecords
+_episodeRecords
+System.Runtime.ExceptionServices
+System.Runtime.InteropServices
+System.Runtime.CompilerServices
+RegisterServices
+DebuggingModes
+IHasWebPages
+GetPages
+MediaBrowser.Model.Entities
+MediaBrowser.Controller.Entities
+DateTimeStyles
+FromMinutes
+System.Net.Primitives
+PlaybackStopEventArgs
+PlaybackProgressEventArgs
+IApplicationPaths
+applicationPaths
+<>4__this
+get_RunTimeTicks
+get_RuntimeTicks
+set_RuntimeTicks
+get_PlaybackPositionTicks
+get_MaxPositionTicks
+set_MaxPositionTicks
+System.Threading.Tasks
+Equals
+System.Collections.Generic.ICollection<T>.Contains
+System.Collections.IList.Contains
+MediaBrowser.Model.Plugins
+MediaBrowser.Common.Plugins
+MediaBrowser.Controller.Plugins
+ServiceCollectionHostedServiceExtensions
+ServiceCollectionServiceExtensions
+ServiceProviderServiceExtensions
+LoggerExtensions
+HttpClientFactoryExtensions
+get_Locations
+Microsoft.Extensions.Logging.Abstractions
+Microsoft.Extensions.Hosting.Abstractions
+Microsoft.Extensions.DependencyInjection.Abstractions
+System.Collections
+CollectionTypeOptions
+invalidChars
+GetInvalidFileNameChars
+GetVirtualFolders
+_activeTrackers
+RuntimeHelpers
+FileAccess
+get_success
+add_PlaybackProgress
+remove_PlaybackProgress
+OnPlaybackProgress
+Descendants
+Elements
+Jellyfin.Plugin.Podcasts
+MediaBrowser.Controller.Playlists
+Exists
+AddDays
+AfterTwoDays
+System.Collections.Generic.IList<T>.RemoveAt
+System.Collections.IList.RemoveAt
+Concat
+Format
+TryParseExact
+XObject
+Select
+System.Net
+ToHashSet
+System.Collections.IEnumerator.Reset
+op_Implicit
+Exit
+get_Default
+GetValueOrDefault
+FirstOrDefault
+ActionResult
+OkObjectResult
+GetResult
+SetResult
+ToLowerInvariant
+CreateClient
+HttpClient
+client
+XElement
+XComment
+System.Xml.XDocument
+get_Parent
+System.Collections.Generic.IEnumerator<T>.Current
+System.Collections.IEnumerator.Current
+System.Collections.Generic.IEnumerator<T>.get_Current
+System.Collections.IEnumerator.get_Current
+System.Collections.Concurrent
+get_Content
+HttpContent
+System.Collections.Generic.ICollection<T>.Count
+System.Collections.Generic.IReadOnlyCollection<T>.Count
+System.Collections.ICollection.Count
+System.Collections.Generic.ICollection<T>.get_Count
+System.Collections.Generic.IReadOnlyCollection<T>.get_Count
+System.Collections.ICollection.get_Count
+get_Root
+System.Collections.ICollection.SyncRoot
+System.Collections.ICollection.get_SyncRoot
+add_PlaybackStart
+remove_PlaybackStart
+System.Collections.Generic.IList<T>.Insert
+System.Collections.IList.Insert
+IList
+ToList
+get_IncludeInAutoPlaylist
+set_IncludeInAutoPlaylist
+IServerApplicationHost
+applicationHost
+First
+set_Timeout
+System.Collections.IEnumerator.MoveNext
+get_Now
+Throw
+arrayIndex
+index
+OrderBy
+get_Day
+_lastProcessedDay
+_autoDeleteProcessedToday
+_feedsUpdatedToday
+_playlistGeneratedToday
+InitializeArray
+ToArray
+array
+get_Frequency
+set_Frequency
+UpdateFrequency
+Monthly
+Daily
+Weekly
+System.Collections.Generic.ICollection<T>.IsReadOnly
+System.Collections.IList.IsReadOnly
+System.Collections.Generic.ICollection<T>.get_IsReadOnly
+System.Collections.IList.get_IsReadOnly
+MediaBrowser.Controller.Library
+IHttpClientFactory
+_httpClientFactory
+CreateDirectory
+op_Equality
+op_Inequality
+IsNullOrEmpty
+WrapNonExceptionThrows
+$d4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f90
+.NETCoreApp,Version=v9.0
+FrameworkDisplayName
+.NET 9.0
+Jellyfin.Plugin.Podcasts
+Release
+0.0.1.0
+00.0.1.0+2b22ce72a01f9060ebfb69af64807f3f803d342d
+AJellyfin.Plugin.Podcasts.PodcastScheduler+<UpdateFeedsAsync>d__14
+JJellyfin.Plugin.Podcasts.PodcastScheduler+<GenerateAutoPlaylistAsync>d__15
+GJellyfin.Plugin.Podcasts.PodcastScheduler+<ProcessAutoDeleteAsync>d__16
+>Jellyfin.Plugin.Podcasts.PodcastService+<UpdateFeedAsync>d__12
+EJellyfin.Plugin.Podcasts.PodcastService+<ProcessAutoDeleteAsync>d__14
+HJellyfin.Plugin.Podcasts.PodcastService+<GenerateAutoPlaylistAsync>d__16
+FJellyfin.Plugin.Podcasts.PodcastService+<DownloadCoverImageAsync>d__17
+@Jellyfin.Plugin.Podcasts.PodcastService+<DownloadFileAsync>d__18
+BJellyfin.Plugin.Podcasts.Api.PodcastsApiController+<UpdateAll>d__4
+	UpdateAll
+CJellyfin.Plugin.Podcasts.Api.PodcastsApiController+<UpdateFeed>d__5
+UpdateFeed
+EJellyfin.Plugin.Podcasts.Api.PodcastsApiController+<ValidateFeed>d__6
+ValidateFeed
+Plugins/Podcasts
 <div id="podcastsConfigPage" data-role="page" class="page type-interior pluginConfigurationPage">
-
     <div data-role="content">
         <div class="content-primary">
-
             <h1>Podcasts</h1>
-            <p>Gestiona tus suscripciones a podcasts. Los feeds RSS se actualizan automáticamente según la frecuencia configurada. Los episodios se descargan en la carpeta <code>podcasts/</code> dentro de tu biblioteca de música.</p>
-
+            <p>Gestiona tus suscripciones a podcasts. Los feeds RSS se actualizan autom
+ticamente seg
+n la frecuencia configurada. Los episodios se descargan en la carpeta <code>podcasts/</code> dentro de tu biblioteca de m
+sica.</p>
             <!-- Status Banner -->
             <div id="podcastsStatus" style="padding: 0.8em 1em; margin-bottom: 1.5em; border-radius: 4px; display: none;"></div>
-
             <!-- Add / Edit Form -->
             <div id="podcastFeedForm" class="paperList" style="padding: 1em; margin-bottom: 1.5em; display: none;">
                 <h2 id="formTitle" style="margin-top: 0;">Agregar Podcast</h2>
-
                 <div class="inputContainer">
                     <label class="inputLabel" for="podcastName">Nombre del Podcast</label>
-                    <input type="text" id="podcastName" class="emby-input" is="emby-input" placeholder="Ej: Podcast de Tecnología" required />
+                    <input type="text" id="podcastName" class="emby-input" is="emby-input" placeholder="Ej: Podcast de Tecnolog
+a" required />
                 </div>
-
                 <div class="selectContainer">
-                    <label class="selectLabel" for="podcastFrequency">Frecuencia de actualización</label>
+                    <label class="selectLabel" for="podcastFrequency">Frecuencia de actualizaci
+n</label>
                     <select id="podcastFrequency" class="emby-select" is="emby-select">
-                        <option value="0">Diario (todos los días a las 00:00)</option>
+                        <option value="0">Diario (todos los d
+as a las 00:00)</option>
                         <option value="1">Semanal (los lunes a las 00:00)</option>
-                        <option value="2">Mensual (el día 1 a las 00:00)</option>
+                        <option value="2">Mensual (el d
+a 1 a las 00:00)</option>
                     </select>
                 </div>
-
                 <div class="inputContainer">
                     <label class="inputLabel" for="podcastFeedUrl">Enlace del Feed RSS</label>
                     <input type="text" id="podcastFeedUrl" class="emby-input" is="emby-input" placeholder="https://ejemplo.com/podcast/feed.xml" required />
                 </div>
-
                 <div class="selectContainer">
                     <label class="selectLabel" for="podcastAutoDelete">Auto-borrado</label>
                     <select id="podcastAutoDelete" class="emby-select" is="emby-select">
                         <option value="0">Nunca</option>
-                        <option value="1">Dos días después de escucharlo</option>
+                        <option value="1">Dos d
+as despu
+s de escucharlo</option>
                     </select>
-                    <div class="fieldDescription">Solo se borra el episodio específico que ya se escuchó. Los demás episodios no se afectan.</div>
+                    <div class="fieldDescription">Solo se borra el episodio espec
+fico que ya se escuch
+. Los dem
+s episodios no se afectan.</div>
                 </div>
-
                 <div class="checkboxContainer checkboxContainer-withDescription">
                     <label>
-                        <input type="checkbox" id="podcastAutoPlaylist" is="emby-checkbox" />
-                        <span>Incluir en lista de reproducción automática diaria</span>
+                        <input type="checkbox" id="podcastAutoPlaylist" />
+                        <span>Incluir en lista de reproducci
+n autom
+tica diaria</span>
                     </label>
                     <div class="fieldDescription checkboxFieldDescription">
-                        Los episodios no escuchados de este podcast se agregarán a la lista de reproducción automática que se genera cada día a las 01:00.
+                        Los episodios no escuchados de este podcast se agregar
+n a la lista de reproducci
+n autom
+tica que se genera cada d
+a a las 01:00.
                     </div>
                 </div>
-
                 <!-- Validation Status -->
                 <div id="feedValidationResult" style="padding: 0.6em 0.8em; margin: 0.8em 0; border-radius: 4px; display: none;"></div>
-
                 <div style="margin-top: 1em; display: flex; gap: 0.8em;">
-                    <button id="btnValidateFeed" type="button" is="emby-button" class="raised">
+                    <button id="btnValidateFeed" type="button" class="emby-button raised" is="emby-button">
                         <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span>
                         Validar Feed
                     </button>
-                    <button id="btnSaveFeed" type="button" is="emby-button" class="raised button-submit">
+                    <button id="btnSaveFeed" type="button" class="emby-button raised" is="emby-button">
                         <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">save</span>
                         Guardar
                     </button>
-                    <button id="btnCancelForm" type="button" is="emby-button" class="raised">
+                    <button id="btnCancelForm" type="button" class="emby-button raised" is="emby-button">
                         Cancelar
                     </button>
                 </div>
             </div>
-
             <!-- Action Buttons -->
             <div style="margin-bottom: 1.5em; display: flex; gap: 0.8em; flex-wrap: wrap;">
-                <button id="btnAddFeed" type="button" is="emby-button" class="raised">
+                <button id="btnAddFeed" type="button" class="emby-button raised" is="emby-button">
                     <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">add</span>
                     Agregar Podcast
                 </button>
-                <button id="btnUpdateAll" type="button" is="emby-button" class="raised" style="background: #2a4a2a;">
+                <button id="btnUpdateAll" type="button" class="emby-button raised" is="emby-button" style="background: #2a4a2a;">
                     <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">sync</span>
                     Actualizar Todos
                 </button>
             </div>
-
             <!-- Update Progress -->
             <div id="updateProgress" style="padding: 0.8em 1em; margin-bottom: 1em; border-radius: 4px; display: none;">
                 <span id="updateProgressText"></span>
             </div>
-
             <!-- Feeds List -->
             <div id="podcastsFeedsList"></div>
-
             <div style="margin-top: 2em; color: #888; font-size: 0.85em;">
-                <h3 style="font-size: 1em; color: #aaa;">Programación</h3>
+                <h3 style="font-size: 1em; color: #aaa;">Programaci
+n</h3>
                 <ul style="list-style: none; padding: 0; margin: 0;">
-                    <li>&#128340; <strong>00:00</strong> — Actualización de feeds RSS</li>
-                    <li>&#127925; <strong>01:00</strong> — Generación de lista de reproducción automática</li>
-                    <li>&#128465; <strong>02:00</strong> — Procesamiento de auto-borrado</li>
+                    <li>&#128340; <strong>00:00</strong> 
+ Actualizaci
+n de feeds RSS</li>
+                    <li>&#127925; <strong>01:00</strong> 
+ Generaci
+n de lista de reproducci
+n autom
+tica</li>
+                    <li>&#128465; <strong>02:00</strong> 
+ Procesamiento de auto-borrado</li>
                 </ul>
             </div>
         </div>
     </div>
-
     <script type="text/javascript">
-
         var PodcastsPluginId = 'd4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f90';
-
         // --- Configuration state ---
         var currentConfig = null;
         var editingFeedId = null;
         var isFormValidated = false;
-
         // --- Enum display names ---
         var frequencyNames = { 0: 'Diario', 1: 'Semanal', 2: 'Mensual' };
-        var autoDeleteNames = { 0: 'Nunca', 1: '2 días después de escuchar' };
-
+        var autoDeleteNames = { 0: 'Nunca', 1: '2 d
+as despu
+s de escuchar' };
         // --- Helper: normalize config keys (camelCase from server, PascalCase legacy) ---
         function normalizeFeeds(feeds) {
             if (!feeds) return [];
@@ -128,7 +807,6 @@
                 };
             });
         }
-
         // --- Helper: convert JS feed object to server format (both cases) ---
         function feedToServer(feed) {
             return {
@@ -148,7 +826,6 @@
                 lastUpdateDate: feed.lastUpdateDate
             };
         }
-
         // --- Helper: normalize the entire config (camelCase + PascalCase) ---
         function normalizeConfig(raw) {
             if (!raw) return {};
@@ -170,7 +847,6 @@
             }
             return cfg;
         }
-
         // --- Helper: build full config to send to server ---
         function configToServer(cfg) {
             var serverCfg = {};
@@ -189,11 +865,9 @@
             }
             return serverCfg;
         }
-
         // --- Load plugin configuration ---
         function loadConfig() {
             Dashboard.showLoadingMsg();
-
             ApiClient.getPluginConfiguration(PodcastsPluginId).then(function (raw) {
                 currentConfig = normalizeConfig(raw);
                 editingFeedId = null;
@@ -206,18 +880,16 @@
                 Dashboard.hideLoadingMsg();
                 Dashboard.alert({
                     title: 'Error',
-                    message: 'No se pudo cargar la configuración del plugin.'
+                    message: 'No se pudo cargar la configuraci
+n del plugin.'
                 });
             });
         }
-
         // --- Save plugin configuration ---
         function saveConfig() {
             if (!currentConfig) return;
-
             Dashboard.showLoadingMsg();
             var serverCfg = configToServer(currentConfig);
-
             ApiClient.updatePluginConfiguration(PodcastsPluginId, serverCfg).then(function (result) {
                 Dashboard.hideLoadingMsg();
                 Dashboard.processPluginConfigurationUpdateResult(result);
@@ -226,11 +898,10 @@
                 Dashboard.hideLoadingMsg();
                 Dashboard.alert({
                     title: 'Error',
-                    message: 'No se pudo guardar la configuración.'
+                    message: 'No se pudo guardar la configuraci
                 });
             });
         }
-
         // --- Update status banner ---
         function updateStatusBanner() {
             var banner = document.getElementById('podcastsStatus');
@@ -238,20 +909,18 @@
                 banner.style.display = 'none';
                 return;
             }
-
             var feedCount = currentConfig.feeds.length;
             var autoPlaylistCount = currentConfig.feeds.filter(function (f) { return f.includeInAutoPlaylist; }).length;
             var autoDeleteCount = currentConfig.feeds.filter(function (f) { return f.autoDelete === 1; }).length;
-
             banner.style.display = 'block';
             banner.style.backgroundColor = '#1a3a1a';
             banner.style.borderLeft = '4px solid #4CAF50';
             banner.innerHTML =
                 '<strong>' + feedCount + '</strong> podcast' + (feedCount !== 1 ? 's' : '') + ' registrado' + (feedCount !== 1 ? 's' : '') +
-                ' &nbsp;|&nbsp; <strong>' + autoPlaylistCount + '</strong> en lista automática' +
+                ' &nbsp;|&nbsp; <strong>' + autoPlaylistCount + '</strong> en lista autom
+tica' +
                 ' &nbsp;|&nbsp; <strong>' + autoDeleteCount + '</strong> con auto-borrado';
         }
-
         // --- Render feeds list ---
         function renderFeedsList() {
             var container = document.getElementById('podcastsFeedsList');
@@ -263,7 +932,6 @@
                     '</div>';
                 return;
             }
-
             var html = '<table style="width: 100%; border-collapse: collapse;">';
             html += '<thead><tr style="border-bottom: 2px solid #333; text-align: left;">';
             html += '<th style="padding: 0.6em;">Nombre</th>';
@@ -271,15 +939,14 @@
             html += '<th style="padding: 0.6em;">Feed RSS</th>';
             html += '<th style="padding: 0.6em;">Auto-borrado</th>';
             html += '<th style="padding: 0.6em;">Lista Auto</th>';
-            html += '<th style="padding: 0.6em;">Última Act.</th>';
+            html += '<th style="padding: 0.6em;">
+ltima Act.</th>';
             html += '<th style="padding: 0.6em; text-align: right;">Acciones</th>';
             html += '</tr></thead><tbody>';
-
             currentConfig.feeds.forEach(function (feed) {
                 var lastUpdate = feed.lastUpdateDate
                     ? new Date(feed.lastUpdateDate).toLocaleDateString('es')
                     : 'Nunca';
-
                 html += '<tr style="border-bottom: 1px solid #2a2a2a;">';
                 html += '<td style="padding: 0.6em; font-weight: 500;">' + escapeHtml(feed.name) + '</td>';
                 html += '<td style="padding: 0.6em;">' + (frequencyNames[feed.frequency] || 'Desconocido') + '</td>';
@@ -294,36 +961,30 @@
                 html += '</td>';
                 html += '</tr>';
             });
-
             html += '</tbody></table>';
             container.innerHTML = html;
-
             // Bind action buttons
             container.querySelectorAll('button[data-action="update"]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     updateSingleFeed(this.getAttribute('data-name'));
                 });
             });
-
             container.querySelectorAll('button[data-action="edit"]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     editFeed(this.getAttribute('data-id'));
                 });
             });
-
             container.querySelectorAll('button[data-action="delete"]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     deleteFeed(this.getAttribute('data-id'));
                 });
             });
         }
-
         // --- Show the add/edit form ---
         function showForm(mode) {
             var form = document.getElementById('podcastFeedForm');
             var title = document.getElementById('formTitle');
             form.style.display = 'block';
-
             if (mode === 'edit') {
                 title.textContent = 'Editar Podcast';
                 document.getElementById('btnSaveFeed').textContent = 'Actualizar';
@@ -332,18 +993,15 @@
                 document.getElementById('btnSaveFeed').textContent = 'Guardar';
                 clearForm();
             }
-
             isFormValidated = (mode === 'edit');
             hideValidationResult();
             document.getElementById('podcastName').focus();
         }
-
         function hideForm() {
             document.getElementById('podcastFeedForm').style.display = 'none';
             clearForm();
             editingFeedId = null;
         }
-
         function clearForm() {
             document.getElementById('podcastName').value = '';
             document.getElementById('podcastFrequency').value = '0';
@@ -353,12 +1011,10 @@
             isFormValidated = false;
             hideValidationResult();
         }
-
         // --- Show validation result ---
         function showValidationResult(success, message) {
             var el = document.getElementById('feedValidationResult');
             el.style.display = 'block';
-
             if (success) {
                 el.style.backgroundColor = '#1a3a1a';
                 el.style.color = '#4CAF50';
@@ -369,11 +1025,9 @@
                 el.innerHTML = '&#10060; ' + escapeHtml(message);
             }
         }
-
         function hideValidationResult() {
             document.getElementById('feedValidationResult').style.display = 'none';
         }
-
         // --- Validate feed URL (server-side via API) ---
         function validateFeed() {
             var url = document.getElementById('podcastFeedUrl').value.trim();
@@ -381,7 +1035,6 @@
                 showValidationResult(false, 'Ingresa una URL de feed RSS.');
                 return;
             }
-
             // Basic URL validation
             try {
                 var uri = new URL(url);
@@ -390,15 +1043,14 @@
                     return;
                 }
             } catch (e) {
-                showValidationResult(false, 'La URL proporcionada no es válida.');
+                showValidationResult(false, 'La URL proporcionada no es v
+lida.');
                 return;
             }
-
             hideValidationResult();
             var validateBtn = document.getElementById('btnValidateFeed');
             validateBtn.disabled = true;
             validateBtn.textContent = 'Validando...';
-
             // Validate via server-side API (avoids CORS issues)
             ApiClient.ajax({
                 type: 'POST',
@@ -407,7 +1059,6 @@
             }).then(function (result) {
                 validateBtn.disabled = false;
                 validateBtn.innerHTML = '<span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span> Validar Feed';
-
                 if (result.success) {
                     isFormValidated = true;
                     showValidationResult(true, result.message);
@@ -422,7 +1073,6 @@
                 showValidationResult(false, 'No se pudo conectar al servidor para validar el feed.');
             });
         }
-
         // --- Save feed (add or update) ---
         function saveFeed() {
             var name = document.getElementById('podcastName').value.trim();
@@ -430,7 +1080,6 @@
             var feedUrl = document.getElementById('podcastFeedUrl').value.trim();
             var autoDelete = parseInt(document.getElementById('podcastAutoDelete').value, 10);
             var includeInAutoPlaylist = document.getElementById('podcastAutoPlaylist').checked;
-
             // Validate fields
             if (!name) {
                 Dashboard.alert({ title: 'Campo requerido', message: 'Ingresa el nombre del podcast.' });
@@ -440,13 +1089,12 @@
                 Dashboard.alert({ title: 'Campo requerido', message: 'Ingresa el enlace del feed RSS.' });
                 return;
             }
-
             // Require validation for new feeds
             if (!editingFeedId && !isFormValidated) {
-                Dashboard.alert({ title: 'Validación requerida', message: 'Debes validar el feed RSS antes de agregarlo.' });
+                Dashboard.alert({ title: 'Validaci
+n requerida', message: 'Debes validar el feed RSS antes de agregarlo.' });
                 return;
             }
-
             // Check for duplicate name (excluding current feed when editing)
             var duplicateName = currentConfig.feeds.find(function (f) {
                 return f.name.toLowerCase() === name.toLowerCase() && f.id !== editingFeedId;
@@ -455,7 +1103,6 @@
                 Dashboard.alert({ title: 'Nombre duplicado', message: 'Ya existe un podcast con ese nombre.' });
                 return;
             }
-
             if (editingFeedId) {
                 // Update existing feed
                 var feedIndex = currentConfig.feeds.findIndex(function (f) { return f.id === editingFeedId; });
@@ -478,37 +1125,34 @@
                     lastUpdateDate: null
                 });
             }
-
             saveConfig();
             hideForm();
             renderFeedsList();
             updateStatusBanner();
         }
-
         // --- Edit feed ---
         function editFeed(id) {
             var feed = currentConfig.feeds.find(function (f) { return f.id === id; });
             if (!feed) return;
-
             editingFeedId = id;
             document.getElementById('podcastName').value = feed.name;
             document.getElementById('podcastFrequency').value = String(feed.frequency);
             document.getElementById('podcastFeedUrl').value = feed.feedUrl;
             document.getElementById('podcastAutoDelete').value = String(feed.autoDelete);
             document.getElementById('podcastAutoPlaylist').checked = feed.includeInAutoPlaylist;
-
             showForm('edit');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-
         // --- Delete feed ---
         function deleteFeed(id) {
             var feed = currentConfig.feeds.find(function (f) { return f.id === id; });
             if (!feed) return;
-
             Dashboard.confirm({
                 title: 'Borrar Podcast',
-                message: '¿Estás seguro de que quieres borrar "' + escapeHtml(feed.name) + '"? Los episodios descargados no se eliminarán automáticamente.',
+                message: '
+s seguro de que quieres borrar "' + escapeHtml(feed.name) + '"? Los episodios descargados no se eliminar
+n autom
+ticamente.',
                 confirmText: 'Borrar',
                 cancelText: 'Cancelar'
             }).then(function (confirmed) {
@@ -520,40 +1164,32 @@
                 }
             });
         }
-
         // --- Utility: HTML escape ---
         function escapeHtml(text) {
             var div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
-
         // --- Event bindings ---
         document.querySelector('#podcastsConfigPage').addEventListener('pageshow', function () {
             loadConfig();
         });
-
         document.getElementById('btnAddFeed').addEventListener('click', function () {
             editingFeedId = null;
             showForm('add');
         });
-
         document.getElementById('btnCancelForm').addEventListener('click', function () {
             hideForm();
         });
-
         document.getElementById('btnValidateFeed').addEventListener('click', function () {
             validateFeed();
         });
-
         document.getElementById('btnSaveFeed').addEventListener('click', function () {
             saveFeed();
         });
-
         document.getElementById('btnUpdateAll').addEventListener('click', function () {
             updateAllFeeds();
         });
-
         // --- Manual update functions ---
         function showUpdateProgress(message) {
             var el = document.getElementById('updateProgress');
@@ -563,20 +1199,18 @@
             el.style.borderLeft = '4px solid #2196F3';
             text.innerHTML = '&#128260; ' + escapeHtml(message);
         }
-
         function hideUpdateProgress() {
             document.getElementById('updateProgress').style.display = 'none';
         }
-
         function updateAllFeeds() {
             if (!currentConfig || !currentConfig.feeds || currentConfig.feeds.length === 0) {
                 Dashboard.alert({ title: 'Sin podcasts', message: 'No hay podcasts configurados para actualizar.' });
                 return;
             }
-
             Dashboard.confirm({
                 title: 'Actualizar Todos',
-                message: '¿Deseas actualizar todos los podcasts ahora? Esto puede tomar varios minutos.',
+                message: '
+Deseas actualizar todos los podcasts ahora? Esto puede tomar varios minutos.',
                 confirmText: 'Actualizar',
                 cancelText: 'Cancelar'
             }).then(function (confirmed) {
@@ -584,7 +1218,6 @@
                     showUpdateProgress('Actualizando todos los podcasts... Por favor espera.');
                     var btn = document.getElementById('btnUpdateAll');
                     btn.disabled = true;
-
                     ApiClient.ajax({
                         type: 'POST',
                         url: ApiClient.getUrl('Plugins/Podcasts/UpdateAll'),
@@ -593,7 +1226,8 @@
                         btn.disabled = false;
                         hideUpdateProgress();
                         if (result.success) {
-                            Dashboard.alert({ title: 'Actualización completa', message: result.message });
+                            Dashboard.alert({ title: 'Actualizaci
+n completa', message: result.message });
                         } else {
                             Dashboard.alert({ title: 'Error', message: result.error || 'Error desconocido.' });
                         }
@@ -607,17 +1241,16 @@
                 }
             });
         }
-
         function updateSingleFeed(name) {
             Dashboard.confirm({
                 title: 'Actualizar Podcast',
-                message: '¿Deseas actualizar "' + escapeHtml(name) + '" ahora?',
+                message: '
+Deseas actualizar "' + escapeHtml(name) + '" ahora?',
                 confirmText: 'Actualizar',
                 cancelText: 'Cancelar'
             }).then(function (confirmed) {
                 if (confirmed) {
                     showUpdateProgress('Actualizando "' + escapeHtml(name) + '"...');
-
                     ApiClient.ajax({
                         type: 'POST',
                         url: ApiClient.getUrl('Plugins/Podcasts/UpdateFeed') + '?name=' + encodeURIComponent(name),
@@ -638,6 +1271,10 @@
                 }
             });
         }
-
     </script>
 </div>
+RSDS
+/home/z/my-project/download/Jellyfin.Plugin.Podcasts/obj/Release/net9.0/Jellyfin.Plugin.Podcasts.pdb
+SHA256
+_CorDllMain
+mscoree.dll
