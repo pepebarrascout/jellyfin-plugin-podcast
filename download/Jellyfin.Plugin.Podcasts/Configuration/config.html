@@ -69,12 +69,21 @@
                 </div>
             </div>
 
-            <!-- Add Button -->
-            <div style="margin-bottom: 1.5em;">
+            <!-- Action Buttons -->
+            <div style="margin-bottom: 1.5em; display: flex; gap: 0.8em; flex-wrap: wrap;">
                 <button id="btnAddFeed" type="button" class="emby-button raised" is="emby-button">
                     <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">add</span>
                     Agregar Podcast
                 </button>
+                <button id="btnUpdateAll" type="button" class="emby-button raised" is="emby-button" style="background: #2a4a2a;">
+                    <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">sync</span>
+                    Actualizar Todos
+                </button>
+            </div>
+
+            <!-- Update Progress -->
+            <div id="updateProgress" style="padding: 0.8em 1em; margin-bottom: 1em; border-radius: 4px; display: none;">
+                <span id="updateProgressText"></span>
             </div>
 
             <!-- Feeds List -->
@@ -279,6 +288,7 @@
                 html += '<td style="padding: 0.6em; text-align: center;">' + (feed.includeInAutoPlaylist ? '&#9989;' : '&#10060;') + '</td>';
                 html += '<td style="padding: 0.6em; color: #888;">' + lastUpdate + '</td>';
                 html += '<td style="padding: 0.6em; text-align: right; white-space: nowrap;">';
+                html += '<button type="button" class="emby-button" is="emby-button" data-action="update" data-id="' + feed.id + '" data-name="' + escapeHtml(feed.name) + '" style="margin-right: 0.4em; padding: 0.3em 0.8em; font-size: 0.85em; color: #4CAF50;">&#128260; Actualizar</button>';
                 html += '<button type="button" class="emby-button" is="emby-button" data-action="edit" data-id="' + feed.id + '" style="margin-right: 0.4em; padding: 0.3em 0.8em; font-size: 0.85em;">Editar</button>';
                 html += '<button type="button" class="emby-button" is="emby-button" data-action="delete" data-id="' + feed.id + '" style="padding: 0.3em 0.8em; font-size: 0.85em; color: #ff6b6b;">Borrar</button>';
                 html += '</td>';
@@ -289,6 +299,12 @@
             container.innerHTML = html;
 
             // Bind action buttons
+            container.querySelectorAll('button[data-action="update"]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    updateSingleFeed(this.getAttribute('data-name'));
+                });
+            });
+
             container.querySelectorAll('button[data-action="edit"]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     editFeed(this.getAttribute('data-id'));
@@ -592,6 +608,95 @@
         document.getElementById('btnSaveFeed').addEventListener('click', function () {
             saveFeed();
         });
+
+        document.getElementById('btnUpdateAll').addEventListener('click', function () {
+            updateAllFeeds();
+        });
+
+        // --- Manual update functions ---
+        function showUpdateProgress(message) {
+            var el = document.getElementById('updateProgress');
+            var text = document.getElementById('updateProgressText');
+            el.style.display = 'block';
+            el.style.backgroundColor = '#1a2a3a';
+            el.style.borderLeft = '4px solid #2196F3';
+            text.innerHTML = '&#128260; ' + escapeHtml(message);
+        }
+
+        function hideUpdateProgress() {
+            document.getElementById('updateProgress').style.display = 'none';
+        }
+
+        function updateAllFeeds() {
+            if (!currentConfig || !currentConfig.feeds || currentConfig.feeds.length === 0) {
+                Dashboard.alert({ title: 'Sin podcasts', message: 'No hay podcasts configurados para actualizar.' });
+                return;
+            }
+
+            Dashboard.confirm({
+                title: 'Actualizar Todos',
+                message: '¿Deseas actualizar todos los podcasts ahora? Esto puede tomar varios minutos.',
+                confirmText: 'Actualizar',
+                cancelText: 'Cancelar'
+            }).then(function (confirmed) {
+                if (confirmed) {
+                    showUpdateProgress('Actualizando todos los podcasts... Por favor espera.');
+                    var btn = document.getElementById('btnUpdateAll');
+                    btn.disabled = true;
+
+                    ApiClient.ajax({
+                        type: 'POST',
+                        url: ApiClient.getUrl('Plugins/Podcasts/UpdateAll'),
+                        dataType: 'json'
+                    }).then(function (result) {
+                        btn.disabled = false;
+                        hideUpdateProgress();
+                        if (result.success) {
+                            Dashboard.alert({ title: 'Actualización completa', message: result.message });
+                        } else {
+                            Dashboard.alert({ title: 'Error', message: result.error || 'Error desconocido.' });
+                        }
+                        // Reload config to update LastUpdateDate display
+                        loadConfig();
+                    }).catch(function () {
+                        btn.disabled = false;
+                        hideUpdateProgress();
+                        Dashboard.alert({ title: 'Error', message: 'No se pudo conectar al servidor para actualizar.' });
+                    });
+                }
+            });
+        }
+
+        function updateSingleFeed(name) {
+            Dashboard.confirm({
+                title: 'Actualizar Podcast',
+                message: '¿Deseas actualizar "' + escapeHtml(name) + '" ahora?',
+                confirmText: 'Actualizar',
+                cancelText: 'Cancelar'
+            }).then(function (confirmed) {
+                if (confirmed) {
+                    showUpdateProgress('Actualizando "' + escapeHtml(name) + '"...');
+
+                    ApiClient.ajax({
+                        type: 'POST',
+                        url: ApiClient.getUrl('Plugins/Podcasts/UpdateFeed') + '?name=' + encodeURIComponent(name),
+                        dataType: 'json'
+                    }).then(function (result) {
+                        hideUpdateProgress();
+                        if (result.success) {
+                            Dashboard.alert({ title: 'Actualizado', message: result.message });
+                        } else {
+                            Dashboard.alert({ title: 'Error', message: result.error || 'Error desconocido.' });
+                        }
+                        // Reload config to update LastUpdateDate display
+                        loadConfig();
+                    }).catch(function () {
+                        hideUpdateProgress();
+                        Dashboard.alert({ title: 'Error', message: 'No se pudo conectar al servidor para actualizar.' });
+                    });
+                }
+            });
+        }
 
     </script>
 </div>
