@@ -4,7 +4,7 @@
     "name": "Podcasts",
     "description": "Manage podcast subscriptions with automatic RSS feed updates, episode downloads, auto-delete after listening, and daily auto-playlist generation.",
     "overview": "Subscribe to podcast RSS feeds, automatically download new episodes, manage auto-deletion of listened content, and generate a daily auto-playlist of unlistened episodes.",
-    "owner": "podcast-plugin",
+    "owner": "PepeBarrascout",
     "category": "Music",
     "imageUrl": "https://raw.githubusercontent.com/pepebarrascout/jellyfin-plugin-podcast/main/logo.png",
     "versions": [
