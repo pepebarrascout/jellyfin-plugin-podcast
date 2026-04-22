@@ -42,8 +42,8 @@
                 </div>
 
                 <div class="checkboxContainer checkboxContainer-withDescription">
-                    <label class="emby-checkbox-label">
-                        <input type="checkbox" id="podcastAutoPlaylist" is="emby-checkbox" class="emby-checkbox" />
+                    <label>
+                        <input type="checkbox" id="podcastAutoPlaylist" />
                         <span>Incluir en lista de reproducción automática diaria</span>
                     </label>
                     <div class="fieldDescription checkboxFieldDescription">
@@ -55,7 +55,7 @@
                 <div id="feedValidationResult" style="padding: 0.6em 0.8em; margin: 0.8em 0; border-radius: 4px; display: none;"></div>
 
                 <div style="margin-top: 1em; display: flex; gap: 0.8em;">
-                    <button id="btnValidateFeed" type="button" class="emby-button" is="emby-button">
+                    <button id="btnValidateFeed" type="button" class="emby-button raised" is="emby-button">
                         <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span>
                         Validar Feed
                     </button>
@@ -63,7 +63,7 @@
                         <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">save</span>
                         Guardar
                     </button>
-                    <button id="btnCancelForm" type="button" class="emby-button" is="emby-button">
+                    <button id="btnCancelForm" type="button" class="emby-button raised" is="emby-button">
                         Cancelar
                     </button>
                 </div>
@@ -374,7 +374,7 @@
             document.getElementById('feedValidationResult').style.display = 'none';
         }
 
-        // --- Validate feed URL (client-side RSS parsing) ---
+        // --- Validate feed URL (server-side via API) ---
         function validateFeed() {
             var url = document.getElementById('podcastFeedUrl').value.trim();
             if (!url) {
@@ -394,92 +394,33 @@
                 return;
             }
 
-            // Check for duplicate in existing feeds
-            if (currentConfig && currentConfig.feeds) {
-                var isDuplicate = currentConfig.feeds.some(function (f) {
-                    return f.feedUrl.replace(/\/+$/, '') === url.replace(/\/+$/, '');
-                });
-                if (isDuplicate) {
-                    showValidationResult(false, 'Este feed RSS ya está registrado.');
-                    return;
-                }
-            }
-
             hideValidationResult();
             var validateBtn = document.getElementById('btnValidateFeed');
             validateBtn.disabled = true;
             validateBtn.textContent = 'Validando...';
 
-            // Fetch and validate RSS directly from client
-            fetch(url, { mode: 'cors' })
-                .then(function (response) {
-                    if (!response.ok) {
-                        throw new Error('HTTP ' + response.status + ': ' + response.statusText);
-                    }
-                    return response.text();
-                })
-                .then(function (text) {
-                    // Parse as XML
-                    var parser = new DOMParser();
-                    var doc = parser.parseFromString(text, 'text/xml');
+            // Validate via server-side API (avoids CORS issues)
+            ApiClient.ajax({
+                type: 'POST',
+                url: ApiClient.getUrl('Plugins/Podcasts/ValidateFeed') + '?url=' + encodeURIComponent(url),
+                dataType: 'json'
+            }).then(function (result) {
+                validateBtn.disabled = false;
+                validateBtn.innerHTML = '<span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span> Validar Feed';
 
-                    // Check for parse errors
-                    var parseError = doc.querySelector('parsererror');
-                    if (parseError) {
-                        throw new Error('El contenido no es XML válido.');
-                    }
-
-                    // Check for RSS root element
-                    var rssElement = doc.querySelector('rss');
-                    if (!rssElement) {
-                        throw new Error('La URL no contiene un feed RSS válido.');
-                    }
-
-                    var channel = rssElement.querySelector(':scope > channel');
-                    if (!channel) {
-                        throw new Error('El feed RSS no contiene un elemento <channel>.');
-                    }
-
-                    // Check for at least one item with an audio enclosure
-                    var items = channel.querySelectorAll('item');
-                    var hasAudio = false;
-                    var audioExtensions = ['.mp3', '.m4a', '.ogg', '.opus', '.wav', '.flac', '.aac', '.wma', '.mp4', '.webm'];
-
-                    for (var i = 0; i < items.length; i++) {
-                        var enclosure = items[i].querySelector('enclosure');
-                        if (enclosure) {
-                            var encUrl = enclosure.getAttribute('url') || '';
-                            var mimeType = (enclosure.getAttribute('type') || '').toLowerCase();
-                            var ext = encUrl.substring(encUrl.lastIndexOf('.')).toLowerCase();
-
-                            if (mimeType.indexOf('audio/') === 0 || audioExtensions.indexOf(ext) !== -1) {
-                                hasAudio = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!hasAudio) {
-                        throw new Error('El feed RSS no contiene episodios de audio válidos.');
-                    }
-
-                    // Validation passed
-                    validateBtn.disabled = false;
-                    validateBtn.innerHTML = '<span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span> Validar Feed';
+                if (result.success) {
                     isFormValidated = true;
-                    showValidationResult(true, 'Feed RSS válido con ' + items.length + ' episodio(s) encontrado(s). Listo para agregar.');
-                })
-                .catch(function (error) {
-                    validateBtn.disabled = false;
-                    validateBtn.innerHTML = '<span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span> Validar Feed';
+                    showValidationResult(true, result.message);
+                } else {
                     isFormValidated = false;
-
-                    var msg = error.message || 'Error desconocido';
-                    if (error.message && error.message.indexOf('Failed to fetch') !== -1) {
-                        msg = 'No se pudo conectar. Verifica que el enlace sea accesible y permita CORS.';
-                    }
-                    showValidationResult(false, msg);
-                });
+                    showValidationResult(false, result.error || 'Error desconocido.');
+                }
+            }).catch(function (error) {
+                validateBtn.disabled = false;
+                validateBtn.innerHTML = '<span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span> Validar Feed';
+                isFormValidated = false;
+                showValidationResult(false, 'No se pudo conectar al servidor para validar el feed.');
+            });
         }
 
         // --- Save feed (add or update) ---

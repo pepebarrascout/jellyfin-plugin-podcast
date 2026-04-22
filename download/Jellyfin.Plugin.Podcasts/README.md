@@ -50,7 +50,10 @@
 2. Haz clic en el botón **+** (agregar repositorio)
 3. Ingresa los siguientes datos:
    - **Nombre**: `Podcast Plugin`
-   - **URL del Manifest**: `https://raw.githubusercontent.com/pepebarrascout/jellyfin-plugin-podcast/main/manifest.json`
+   - **URL del Manifest**:
+     ```
+     https://raw.githubusercontent.com/pepebarrascout/jellyfin-plugin-podcast/main/manifest.json
+     ```
 4. Haz clic en **Guardar**
 5. Navega a la pestaña **Catálogo**
 6. Busca **Podcasts** en la lista de plugins disponibles
