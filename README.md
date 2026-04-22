@@ -197,12 +197,12 @@ Los archivos `.dll` resultantes se copian a la carpeta de plugins de Jellyfin.
 
 ---
 
-## 💬 Soporte
+## 💬 Soporte y Contribuciones
 
-- **Issues**: [GitHub Issues](https://github.com/pepebarrascout/jellyfin-plugin-podcast/issues)
-- **Jellyfin**: [Foro de Jellyfin](https://forum.jellyfin.org/)
-- **Matrix**: [#jellyfin en Matrix](https://matrix.to/#/#jellyfin:matrix.org)
-
+- **Reportes de bugs y sugerencias**: Usa la sección de [Issues](https://github.com/pepebarrascout/jellyfin-plugin-podcast/issues) para reportar problemas o proponer nuevas funciones
+- **Contribuciones**: Las contribuciones son bienvenidas. No dudes en enviar un Pull Request
+- **Reportes de uso**: Si has probado el plugin en un cliente de Jellyfin que no aparece en la lista de [Clientes Probados](#-clientes-probados), por favor compártelo.
+- **Versión Alpha**: El plugin aún se encuentra todavía en versión Alpha y no se ha probado ampliamente. Agradecemos los **reportes de uso** para ir depurando el código. ¡Ayúdanos a probar el plugin!.
 ---
 
 ## ⚠️ Disclaimer
