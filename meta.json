@@ -5,8 +5,8 @@
   "overview": "Subscribe to podcast RSS feeds, automatically download new episodes, manage auto-deletion of listened content, and generate a daily auto-playlist of unlistened episodes.",
   "owner": "podcast-plugin",
   "category": "Music",
-  "version": "1.0.0.0",
-  "changelog": "- Initial release\n- RSS feed subscription management\n- Configurable update frequency (daily, weekly, monthly)\n- Auto-download of new episodes\n- Cover image extraction as folder.jpg\n- Auto-delete after 2 days of listening\n- Daily auto-playlist generation\n- Podcast detection via playback events",
+  "version": "0.0.1.0",
+  "changelog": "- Alpha release\n- RSS feed subscription management\n- Configurable update frequency (daily, weekly, monthly)\n- Auto-download of new episodes\n- Cover image extraction as folder.jpg\n- Auto-delete after 2 days of listening\n- Daily auto-playlist generation in Jellyfin XML format\n- Manual feed update buttons\n- Podcast detection via playback events",
   "targetAbi": "10.11.0.0",
   "timestamp": "2026-04-23T00:00:00Z",
   "imagePath": "logo.png"

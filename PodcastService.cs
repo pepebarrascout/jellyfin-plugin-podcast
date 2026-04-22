@@ -8,6 +8,7 @@ using System.Xml.Linq;
 using Jellyfin.Plugin.Podcasts.Configuration;
 using Jellyfin.Plugin.Podcasts.Model;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Playlists;
 using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging;
 
@@ -25,6 +26,7 @@ public class PodcastService
     private readonly ILogger<PodcastService> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILibraryManager _libraryManager;
+    private readonly IPlaylistManager _playlistManager;
     private readonly string _pluginDataPath;
     private readonly string _episodeDataPath;
     private readonly object _dataLock = new();
@@ -47,11 +49,13 @@ public class PodcastService
         ILogger<PodcastService> logger,
         IHttpClientFactory httpClientFactory,
         ILibraryManager libraryManager,
+        IPlaylistManager playlistManager,
         string pluginDataPath)
     {
         _logger = logger;
         _httpClientFactory = httpClientFactory;
         _libraryManager = libraryManager;
+        _playlistManager = playlistManager;
         _pluginDataPath = pluginDataPath;
         _episodeDataPath = Path.Combine(pluginDataPath, "episode-data.xml");
 
@@ -349,11 +353,35 @@ public class PodcastService
     }
 
     /// <summary>
+    /// Returns the path to Jellyfin's default playlists folder.
+    /// Uses IPlaylistManager.GetPlaylistsFolder() to resolve the correct path.
+    /// Falls back to a "playlists" subfolder in the plugin data path if the manager is unavailable.
+    /// </summary>
+    public string GetPlaylistsFolderPath()
+    {
+        try
+        {
+            var folder = _playlistManager.GetPlaylistsFolder();
+            if (folder != null && !string.IsNullOrEmpty(folder.Path))
+            {
+                Directory.CreateDirectory(folder.Path);
+                return folder.Path;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not get playlists folder from PlaylistManager, using fallback");
+        }
+
+        return Path.Combine(_pluginDataPath, "playlists");
+    }
+
+    /// <summary>
     /// Generates a daily auto-playlist containing all unlistened episodes from
     /// podcast feeds configured with IncludeInAutoPlaylist = true.
     /// Episodes are ordered chronologically by their publication date (oldest first).
     /// The playlist is saved in Jellyfin's native XML playlist format (playlist.xml)
-    /// inside a directory named "Podcast Auto Playlist" within the podcasts base folder.
+    /// inside a directory named "Podcast Auto Playlist" within the Jellyfin playlists folder.
     /// </summary>
     public async Task GenerateAutoPlaylistAsync()
     {
@@ -388,9 +416,8 @@ public class PodcastService
         }
 
         var basePath = GetPodcastBasePath();
-        Directory.CreateDirectory(basePath);
-
-        var playlistDir = Path.Combine(basePath, "Podcast Auto Playlist");
+        var playlistsPath = GetPlaylistsFolderPath();
+        var playlistDir = Path.Combine(playlistsPath, "Podcast Auto Playlist");
         Directory.CreateDirectory(playlistDir);
         var playlistPath = Path.Combine(playlistDir, "playlist.xml");
 
