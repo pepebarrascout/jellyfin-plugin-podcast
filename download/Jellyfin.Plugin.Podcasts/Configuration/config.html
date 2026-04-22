@@ -1,0 +1,520 @@
+<div id="podcastsConfigPage" data-role="page" class="page type-interior pluginConfigurationPage">
+
+    <div data-role="content">
+        <div class="content-primary">
+
+            <h1>Podcasts</h1>
+            <p>Gestiona tus suscripciones a podcasts. Los feeds RSS se actualizan automáticamente según la frecuencia configurada. Los episodios se descargan en la carpeta <code>podcasts/</code> dentro de tu biblioteca de música.</p>
+
+            <!-- Status Banner -->
+            <div id="podcastsStatus" style="padding: 0.8em 1em; margin-bottom: 1.5em; border-radius: 4px; display: none;"></div>
+
+            <!-- Add / Edit Form -->
+            <div id="podcastFeedForm" class="paperList" style="padding: 1em; margin-bottom: 1.5em; display: none;">
+                <h2 id="formTitle" style="margin-top: 0;">Agregar Podcast</h2>
+
+                <div class="inputContainer">
+                    <label class="inputLabel" for="podcastName">Nombre del Podcast</label>
+                    <input type="text" id="podcastName" class="emby-input" is="emby-input" placeholder="Ej: Podcast de Tecnología" required />
+                </div>
+
+                <div class="selectContainer">
+                    <label class="selectLabel" for="podcastFrequency">Frecuencia de actualización</label>
+                    <select id="podcastFrequency" class="emby-select" is="emby-select">
+                        <option value="0">Diario (todos los días a las 00:00)</option>
+                        <option value="1">Semanal (los lunes a las 00:00)</option>
+                        <option value="2">Mensual (el día 1 a las 00:00)</option>
+                    </select>
+                </div>
+
+                <div class="inputContainer">
+                    <label class="inputLabel" for="podcastFeedUrl">Enlace del Feed RSS</label>
+                    <input type="text" id="podcastFeedUrl" class="emby-input" is="emby-input" placeholder="https://ejemplo.com/podcast/feed.xml" required />
+                </div>
+
+                <div class="selectContainer">
+                    <label class="selectLabel" for="podcastAutoDelete">Auto-borrado</label>
+                    <select id="podcastAutoDelete" class="emby-select" is="emby-select">
+                        <option value="0">Nunca</option>
+                        <option value="1">Dos días después de escucharlo</option>
+                    </select>
+                    <div class="fieldDescription">Solo se borra el episodio específico que ya se escuchó. Los demás episodios no se afectan.</div>
+                </div>
+
+                <div class="checkboxContainer checkboxContainer-withDescription">
+                    <label class="emby-checkbox-label">
+                        <input type="checkbox" id="podcastAutoPlaylist" is="emby-checkbox" class="emby-checkbox" />
+                        <span>Incluir en lista de reproducción automática diaria</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        Los episodios no escuchados de este podcast se agregarán a la lista de reproducción automática que se genera cada día a las 01:00.
+                    </div>
+                </div>
+
+                <!-- Validation Status -->
+                <div id="feedValidationResult" style="padding: 0.6em 0.8em; margin: 0.8em 0; border-radius: 4px; display: none;"></div>
+
+                <div style="margin-top: 1em; display: flex; gap: 0.8em;">
+                    <button id="btnValidateFeed" type="button" class="emby-button" is="emby-button">
+                        <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span>
+                        Validar Feed
+                    </button>
+                    <button id="btnSaveFeed" type="button" class="emby-button raised" is="emby-button">
+                        <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">save</span>
+                        Guardar
+                    </button>
+                    <button id="btnCancelForm" type="button" class="emby-button" is="emby-button">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Add Button -->
+            <div style="margin-bottom: 1.5em;">
+                <button id="btnAddFeed" type="button" class="emby-button raised" is="emby-button">
+                    <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">add</span>
+                    Agregar Podcast
+                </button>
+            </div>
+
+            <!-- Feeds List -->
+            <div id="podcastsFeedsList"></div>
+
+            <div style="margin-top: 2em; color: #888; font-size: 0.85em;">
+                <h3 style="font-size: 1em; color: #aaa;">Programación</h3>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    <li>&#128340; <strong>00:00</strong> — Actualización de feeds RSS</li>
+                    <li>&#127925; <strong>01:00</strong> — Generación de lista de reproducción automática</li>
+                    <li>&#128465; <strong>02:00</strong> — Procesamiento de auto-borrado</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+
+        var PodcastsPluginId = 'd4e5f6a7-b8c9-0d1e-2f3a-4b5c6d7e8f90';
+
+        // --- Configuration state ---
+        var currentConfig = null;
+        var editingFeedId = null;
+        var isFormValidated = false;
+
+        // --- Enum display names ---
+        var frequencyNames = { 0: 'Diario', 1: 'Semanal', 2: 'Mensual' };
+        var autoDeleteNames = { 0: 'Nunca', 1: '2 días después de escuchar' };
+
+        // --- Helper: normalize config keys (camelCase from server, PascalCase legacy) ---
+        function normalizeFeeds(feeds) {
+            if (!feeds) return [];
+            return feeds.map(function (f) {
+                return {
+                    id: f.id || f.Id || '',
+                    name: f.name || f.Name || '',
+                    frequency: f.frequency !== undefined ? f.frequency : (f.Frequency !== undefined ? f.Frequency : 0),
+                    feedUrl: f.feedUrl || f.FeedUrl || '',
+                    autoDelete: f.autoDelete !== undefined ? f.autoDelete : (f.AutoDelete !== undefined ? f.AutoDelete : 0),
+                    includeInAutoPlaylist: f.includeInAutoPlaylist !== undefined ? f.includeInAutoPlaylist : (f.IncludeInAutoPlaylist !== undefined ? f.IncludeInAutoPlaylist : false),
+                    lastUpdateDate: f.lastUpdateDate || f.LastUpdateDate || null
+                };
+            });
+        }
+
+        // --- Helper: convert JS feed object to server format (both cases) ---
+        function feedToServer(feed) {
+            return {
+                Id: feed.id,
+                id: feed.id,
+                Name: feed.name,
+                name: feed.name,
+                Frequency: feed.frequency,
+                frequency: feed.frequency,
+                FeedUrl: feed.feedUrl,
+                feedUrl: feed.feedUrl,
+                AutoDelete: feed.autoDelete,
+                autoDelete: feed.autoDelete,
+                IncludeInAutoPlaylist: feed.includeInAutoPlaylist,
+                includeInAutoPlaylist: feed.includeInAutoPlaylist,
+                LastUpdateDate: feed.lastUpdateDate,
+                lastUpdateDate: feed.lastUpdateDate
+            };
+        }
+
+        // --- Helper: normalize the entire config (camelCase + PascalCase) ---
+        function normalizeConfig(raw) {
+            if (!raw) return {};
+            var cfg = {};
+            for (var key in raw) {
+                if (raw.hasOwnProperty(key)) {
+                    var camelKey = key.charAt(0).toLowerCase() + key.slice(1);
+                    cfg[key] = raw[key];
+                    cfg[camelKey] = raw[key];
+                }
+            }
+            // Normalize feeds list
+            if (cfg.feeds || cfg.Feeds) {
+                cfg.feeds = normalizeFeeds(cfg.feeds || cfg.Feeds);
+                cfg.Feeds = cfg.feeds;
+            } else {
+                cfg.feeds = [];
+                cfg.Feeds = [];
+            }
+            return cfg;
+        }
+
+        // --- Helper: build full config to send to server ---
+        function configToServer(cfg) {
+            var serverCfg = {};
+            for (var key in cfg) {
+                if (cfg.hasOwnProperty(key)) {
+                    var pascalKey = key.charAt(0).toUpperCase() + key.slice(1);
+                    serverCfg[key] = cfg[key];
+                    serverCfg[pascalKey] = cfg[key];
+                }
+            }
+            // Convert feeds to server format
+            if (cfg.feeds) {
+                var serverFeeds = cfg.feeds.map(feedToServer);
+                serverCfg.Feeds = serverFeeds;
+                serverCfg.feeds = serverFeeds;
+            }
+            return serverCfg;
+        }
+
+        // --- Load plugin configuration ---
+        function loadConfig() {
+            Dashboard.showLoadingMsg();
+
+            ApiClient.getPluginConfiguration(PodcastsPluginId).then(function (raw) {
+                currentConfig = normalizeConfig(raw);
+                editingFeedId = null;
+                renderFeedsList();
+                updateStatusBanner();
+                hideForm();
+                Dashboard.hideLoadingMsg();
+            }).catch(function (error) {
+                console.error('Error loading plugin config:', error);
+                Dashboard.hideLoadingMsg();
+                Dashboard.alert({
+                    title: 'Error',
+                    message: 'No se pudo cargar la configuración del plugin.'
+                });
+            });
+        }
+
+        // --- Save plugin configuration ---
+        function saveConfig() {
+            if (!currentConfig) return;
+
+            Dashboard.showLoadingMsg();
+            var serverCfg = configToServer(currentConfig);
+
+            ApiClient.updatePluginConfiguration(PodcastsPluginId, serverCfg).then(function (result) {
+                Dashboard.hideLoadingMsg();
+                Dashboard.processPluginConfigurationUpdateResult(result);
+            }).catch(function (error) {
+                console.error('Error saving plugin config:', error);
+                Dashboard.hideLoadingMsg();
+                Dashboard.alert({
+                    title: 'Error',
+                    message: 'No se pudo guardar la configuración.'
+                });
+            });
+        }
+
+        // --- Update status banner ---
+        function updateStatusBanner() {
+            var banner = document.getElementById('podcastsStatus');
+            if (!currentConfig || !currentConfig.feeds || currentConfig.feeds.length === 0) {
+                banner.style.display = 'none';
+                return;
+            }
+
+            var feedCount = currentConfig.feeds.length;
+            var autoPlaylistCount = currentConfig.feeds.filter(function (f) { return f.includeInAutoPlaylist; }).length;
+            var autoDeleteCount = currentConfig.feeds.filter(function (f) { return f.autoDelete === 1; }).length;
+
+            banner.style.display = 'block';
+            banner.style.backgroundColor = '#1a3a1a';
+            banner.style.borderLeft = '4px solid #4CAF50';
+            banner.innerHTML =
+                '<strong>' + feedCount + '</strong> podcast' + (feedCount !== 1 ? 's' : '') + ' registrado' + (feedCount !== 1 ? 's' : '') +
+                ' &nbsp;|&nbsp; <strong>' + autoPlaylistCount + '</strong> en lista automática' +
+                ' &nbsp;|&nbsp; <strong>' + autoDeleteCount + '</strong> con auto-borrado';
+        }
+
+        // --- Render feeds list ---
+        function renderFeedsList() {
+            var container = document.getElementById('podcastsFeedsList');
+            if (!currentConfig || !currentConfig.feeds || currentConfig.feeds.length === 0) {
+                container.innerHTML =
+                    '<div style="padding: 1.5em; text-align: center; color: #888; border: 1px dashed #444; border-radius: 4px;">' +
+                    '<p style="margin:0;">No hay podcasts agregados.</p>' +
+                    '<p style="margin:0.5em 0 0;">Haz clic en "Agregar Podcast" para comenzar.</p>' +
+                    '</div>';
+                return;
+            }
+
+            var html = '<table style="width: 100%; border-collapse: collapse;">';
+            html += '<thead><tr style="border-bottom: 2px solid #333; text-align: left;">';
+            html += '<th style="padding: 0.6em;">Nombre</th>';
+            html += '<th style="padding: 0.6em;">Frecuencia</th>';
+            html += '<th style="padding: 0.6em;">Feed RSS</th>';
+            html += '<th style="padding: 0.6em;">Auto-borrado</th>';
+            html += '<th style="padding: 0.6em;">Lista Auto</th>';
+            html += '<th style="padding: 0.6em;">Última Act.</th>';
+            html += '<th style="padding: 0.6em; text-align: right;">Acciones</th>';
+            html += '</tr></thead><tbody>';
+
+            currentConfig.feeds.forEach(function (feed) {
+                var lastUpdate = feed.lastUpdateDate
+                    ? new Date(feed.lastUpdateDate).toLocaleDateString('es')
+                    : 'Nunca';
+
+                html += '<tr style="border-bottom: 1px solid #2a2a2a;">';
+                html += '<td style="padding: 0.6em; font-weight: 500;">' + escapeHtml(feed.name) + '</td>';
+                html += '<td style="padding: 0.6em;">' + (frequencyNames[feed.frequency] || 'Desconocido') + '</td>';
+                html += '<td style="padding: 0.6em; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' + escapeHtml(feed.feedUrl) + '">' + escapeHtml(feed.feedUrl) + '</td>';
+                html += '<td style="padding: 0.6em;">' + (autoDeleteNames[feed.autoDelete] || 'Nunca') + '</td>';
+                html += '<td style="padding: 0.6em; text-align: center;">' + (feed.includeInAutoPlaylist ? '&#9989;' : '&#10060;') + '</td>';
+                html += '<td style="padding: 0.6em; color: #888;">' + lastUpdate + '</td>';
+                html += '<td style="padding: 0.6em; text-align: right; white-space: nowrap;">';
+                html += '<button type="button" class="emby-button" is="emby-button" data-action="edit" data-id="' + feed.id + '" style="margin-right: 0.4em; padding: 0.3em 0.8em; font-size: 0.85em;">Editar</button>';
+                html += '<button type="button" class="emby-button" is="emby-button" data-action="delete" data-id="' + feed.id + '" style="padding: 0.3em 0.8em; font-size: 0.85em; color: #ff6b6b;">Borrar</button>';
+                html += '</td>';
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+
+            // Bind action buttons
+            container.querySelectorAll('button[data-action="edit"]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    editFeed(this.getAttribute('data-id'));
+                });
+            });
+
+            container.querySelectorAll('button[data-action="delete"]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    deleteFeed(this.getAttribute('data-id'));
+                });
+            });
+        }
+
+        // --- Show the add/edit form ---
+        function showForm(mode) {
+            var form = document.getElementById('podcastFeedForm');
+            var title = document.getElementById('formTitle');
+            form.style.display = 'block';
+
+            if (mode === 'edit') {
+                title.textContent = 'Editar Podcast';
+                document.getElementById('btnSaveFeed').textContent = 'Actualizar';
+            } else {
+                title.textContent = 'Agregar Podcast';
+                document.getElementById('btnSaveFeed').textContent = 'Guardar';
+                clearForm();
+            }
+
+            isFormValidated = (mode === 'edit');
+            hideValidationResult();
+            document.getElementById('podcastName').focus();
+        }
+
+        function hideForm() {
+            document.getElementById('podcastFeedForm').style.display = 'none';
+            clearForm();
+            editingFeedId = null;
+        }
+
+        function clearForm() {
+            document.getElementById('podcastName').value = '';
+            document.getElementById('podcastFrequency').value = '0';
+            document.getElementById('podcastFeedUrl').value = '';
+            document.getElementById('podcastAutoDelete').value = '0';
+            document.getElementById('podcastAutoPlaylist').checked = false;
+            isFormValidated = false;
+            hideValidationResult();
+        }
+
+        // --- Show validation result ---
+        function showValidationResult(success, message) {
+            var el = document.getElementById('feedValidationResult');
+            el.style.display = 'block';
+
+            if (success) {
+                el.style.backgroundColor = '#1a3a1a';
+                el.style.color = '#4CAF50';
+                el.innerHTML = '&#9989; ' + escapeHtml(message);
+            } else {
+                el.style.backgroundColor = '#3a1a1a';
+                el.style.color = '#ff6b6b';
+                el.innerHTML = '&#10060; ' + escapeHtml(message);
+            }
+        }
+
+        function hideValidationResult() {
+            document.getElementById('feedValidationResult').style.display = 'none';
+        }
+
+        // --- Validate feed URL ---
+        function validateFeed() {
+            var url = document.getElementById('podcastFeedUrl').value.trim();
+            if (!url) {
+                showValidationResult(false, 'Ingresa una URL de feed RSS.');
+                return;
+            }
+
+            hideValidationResult();
+            var validateBtn = document.getElementById('btnValidateFeed');
+            validateBtn.disabled = true;
+            validateBtn.textContent = 'Validando...';
+
+            ApiClient.ajax({
+                type: 'GET',
+                url: ApiClient.getUrl('Plugins/Podcasts/ValidateFeed'),
+                data: { url: url },
+                dataType: 'json'
+            }).then(function (result) {
+                validateBtn.disabled = false;
+                validateBtn.innerHTML = '<span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span> Validar Feed';
+                isFormValidated = result.success;
+                showValidationResult(result.success, result.success ? 'Feed RSS válido y listo para agregar.' : result.error);
+            }).catch(function (error) {
+                validateBtn.disabled = false;
+                validateBtn.innerHTML = '<span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span> Validar Feed';
+                isFormValidated = false;
+                showValidationResult(false, 'Error de conexión al validar el feed.');
+            });
+        }
+
+        // --- Save feed (add or update) ---
+        function saveFeed() {
+            var name = document.getElementById('podcastName').value.trim();
+            var frequency = parseInt(document.getElementById('podcastFrequency').value, 10);
+            var feedUrl = document.getElementById('podcastFeedUrl').value.trim();
+            var autoDelete = parseInt(document.getElementById('podcastAutoDelete').value, 10);
+            var includeInAutoPlaylist = document.getElementById('podcastAutoPlaylist').checked;
+
+            // Validate fields
+            if (!name) {
+                Dashboard.alert({ title: 'Campo requerido', message: 'Ingresa el nombre del podcast.' });
+                return;
+            }
+            if (!feedUrl) {
+                Dashboard.alert({ title: 'Campo requerido', message: 'Ingresa el enlace del feed RSS.' });
+                return;
+            }
+
+            // Require validation for new feeds
+            if (!editingFeedId && !isFormValidated) {
+                Dashboard.alert({ title: 'Validación requerida', message: 'Debes validar el feed RSS antes de agregarlo.' });
+                return;
+            }
+
+            // Check for duplicate name (excluding current feed when editing)
+            var duplicateName = currentConfig.feeds.find(function (f) {
+                return f.name.toLowerCase() === name.toLowerCase() && f.id !== editingFeedId;
+            });
+            if (duplicateName) {
+                Dashboard.alert({ title: 'Nombre duplicado', message: 'Ya existe un podcast con ese nombre.' });
+                return;
+            }
+
+            if (editingFeedId) {
+                // Update existing feed
+                var feedIndex = currentConfig.feeds.findIndex(function (f) { return f.id === editingFeedId; });
+                if (feedIndex >= 0) {
+                    currentConfig.feeds[feedIndex].name = name;
+                    currentConfig.feeds[feedIndex].frequency = frequency;
+                    currentConfig.feeds[feedIndex].feedUrl = feedUrl;
+                    currentConfig.feeds[feedIndex].autoDelete = autoDelete;
+                    currentConfig.feeds[feedIndex].includeInAutoPlaylist = includeInAutoPlaylist;
+                }
+            } else {
+                // Add new feed
+                currentConfig.feeds.push({
+                    id: crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }),
+                    name: name,
+                    frequency: frequency,
+                    feedUrl: feedUrl,
+                    autoDelete: autoDelete,
+                    includeInAutoPlaylist: includeInAutoPlaylist,
+                    lastUpdateDate: null
+                });
+            }
+
+            saveConfig();
+            hideForm();
+            renderFeedsList();
+            updateStatusBanner();
+        }
+
+        // --- Edit feed ---
+        function editFeed(id) {
+            var feed = currentConfig.feeds.find(function (f) { return f.id === id; });
+            if (!feed) return;
+
+            editingFeedId = id;
+            document.getElementById('podcastName').value = feed.name;
+            document.getElementById('podcastFrequency').value = String(feed.frequency);
+            document.getElementById('podcastFeedUrl').value = feed.feedUrl;
+            document.getElementById('podcastAutoDelete').value = String(feed.autoDelete);
+            document.getElementById('podcastAutoPlaylist').checked = feed.includeInAutoPlaylist;
+
+            showForm('edit');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // --- Delete feed ---
+        function deleteFeed(id) {
+            var feed = currentConfig.feeds.find(function (f) { return f.id === id; });
+            if (!feed) return;
+
+            Dashboard.confirm({
+                title: 'Borrar Podcast',
+                message: '¿Estás seguro de que quieres borrar "' + escapeHtml(feed.name) + '"? Los episodios descargados no se eliminarán automáticamente.',
+                confirmText: 'Borrar',
+                cancelText: 'Cancelar'
+            }).then(function (confirmed) {
+                if (confirmed) {
+                    currentConfig.feeds = currentConfig.feeds.filter(function (f) { return f.id !== id; });
+                    saveConfig();
+                    renderFeedsList();
+                    updateStatusBanner();
+                }
+            });
+        }
+
+        // --- Utility: HTML escape ---
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // --- Event bindings ---
+        document.querySelector('#podcastsConfigPage').addEventListener('pageshow', function () {
+            loadConfig();
+        });
+
+        document.getElementById('btnAddFeed').addEventListener('click', function () {
+            editingFeedId = null;
+            showForm('add');
+        });
+
+        document.getElementById('btnCancelForm').addEventListener('click', function () {
+            hideForm();
+        });
+
+        document.getElementById('btnValidateFeed').addEventListener('click', function () {
+            validateFeed();
+        });
+
+        document.getElementById('btnSaveFeed').addEventListener('click', function () {
+            saveFeed();
+        });
+
+    </script>
+</div>
