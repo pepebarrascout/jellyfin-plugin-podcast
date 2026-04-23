@@ -76,7 +76,6 @@ public class PodcastService
     /// Returns the base path where all podcast files are stored.
     /// This is a "Podcasts" subfolder relative to the first configured music library folder.
     /// If no music library is found, falls back to a "Podcasts" folder within the Jellyfin data path.
-    /// Automatically migrates from the old lowercase "podcasts" folder if it exists.
     /// </summary>
     public string GetPodcastBasePath()
     {
@@ -94,24 +93,9 @@ public class PodcastService
                     var firstLocation = locations.First();
                     if (Directory.Exists(firstLocation))
                     {
-                        var newPath = Path.Combine(firstLocation, "Podcasts");
-                        var oldPath = Path.Combine(firstLocation, "podcasts");
-
-                        // Migrate from lowercase "podcasts" to "Podcasts" if needed
-                        if (!Directory.Exists(newPath) && Directory.Exists(oldPath))
-                        {
-                            try
-                            {
-                                Directory.Move(oldPath, newPath);
-                                _logger.LogInformation("Migrated podcast folder from 'podcasts' to 'Podcasts'");
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogWarning(ex, "Could not migrate podcast folder from 'podcasts' to 'Podcasts'");
-                            }
-                        }
-
-                        return newPath;
+                        var podcastPath = Path.Combine(firstLocation, "Podcasts");
+                        Directory.CreateDirectory(podcastPath);
+                        return podcastPath;
                     }
                 }
             }
@@ -251,9 +235,6 @@ public class PodcastService
                 _episodeRecords.AddRange(newRecords);
                 SaveEpisodeData();
             }
-
-            // Tag any existing episodes that don't have metadata yet (one-time per feed)
-            await TagExistingEpisodesForFeedAsync(GetPodcastBasePath(), feed);
 
             feed.LastUpdateDate = DateTime.Now;
             _logger.LogInformation("Feed update complete: {FeedName}. New episodes: {Count}", feed.Name, newRecords.Count);
@@ -643,22 +624,57 @@ public class PodcastService
     /// <summary>
     /// Writes ID3/metadata tags to an audio file using TagLibSharp.
     /// Supports MP3 (ID3v2.3), M4A (iTunes atoms), OGG (Vorbis comments), and other formats.
-    /// Fields: Title, Artist (podcast name), Album Artist (Podcast), Album (podcast name), Year, Genre (Podcast).
+    /// Clears ALL existing metadata fields and sets only the required ones.
+    /// Preserves embedded cover art (pictures) if the file already has any.
+    /// Fields set: Title, Artist (podcast name), Album Artist (Podcast), Album (podcast name), Year, Genre (Podcast).
     /// </summary>
     private async Task WriteAudioMetadataAsync(string filePath, string episodeTitle, string podcastName, DateTime publishedDate)
     {
         try
         {
             using var file = TagFile.Create(filePath);
+
+            // Preserve existing cover art before clearing tags
+            var pictures = file.Tag.Pictures;
+
+            // Clear all tags to remove extra data (comments, lyrics, etc.)
+            file.Tag.Title = null;
+            file.Tag.Performers = Array.Empty<string>();
+            file.Tag.AlbumArtists = Array.Empty<string>();
+            file.Tag.Album = null;
+            file.Tag.Year = 0;
+            file.Tag.Genres = Array.Empty<string>();
+            file.Tag.Comment = null;
+            file.Tag.Copyright = null;
+            file.Tag.Conductor = null;
+            file.Tag.Composers = Array.Empty<string>();
+            file.Tag.Disc = 0;
+            file.Tag.DiscCount = 0;
+            file.Tag.Track = 0;
+            file.Tag.TrackCount = 0;
+            file.Tag.Lyrics = null;
+            file.Tag.Grouping = null;
+            file.Tag.Subtitle = null;
+            file.Tag.Description = null;
+            file.Tag.Publisher = null;
+
+            // Now set only the required fields
             file.Tag.Title = episodeTitle;
             file.Tag.Performers = new[] { podcastName };
             file.Tag.AlbumArtists = new[] { "Podcast" };
             file.Tag.Album = podcastName;
             file.Tag.Year = (uint)publishedDate.Year;
             file.Tag.Genres = new[] { "Podcast" };
+
+            // Restore cover art if it existed
+            if (pictures != null && pictures.Length > 0)
+            {
+                file.Tag.Pictures = pictures;
+            }
+
             file.Save();
 
-            _logger.LogInformation("Wrote audio metadata to: {Path}", filePath);
+            _logger.LogInformation("Wrote clean audio metadata to: {Path}", filePath);
         }
         catch (Exception ex)
         {
@@ -666,97 +682,6 @@ public class PodcastService
         }
 
         await Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Tags all existing episode files in a podcast folder that don't have metadata yet.
-    /// Uses a marker file to ensure this only runs once per feed (to avoid re-processing).
-    /// A 2-second delay is added between each file to prevent server overload.
-    /// </summary>
-    private async Task TagExistingEpisodesForFeedAsync(string basePath, PodcastFeed feed)
-    {
-        var markerPath = Path.Combine(_pluginDataPath, $"tagged-{feed.Id:N}");
-        if (File.Exists(markerPath))
-        {
-            _logger.LogDebug("Existing episodes already tagged for feed {Name}, skipping", feed.Name);
-            return;
-        }
-
-        var podcastFolder = Path.Combine(basePath, feed.Name);
-        if (!Directory.Exists(podcastFolder))
-        {
-            return;
-        }
-
-        var audioExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { ".mp3", ".m4a", ".ogg", ".opus", ".wav", ".flac", ".aac", ".wma" };
-
-        var files = Directory.GetFiles(podcastFolder)
-            .Where(f => audioExtensions.Contains(Path.GetExtension(f)))
-            .ToList();
-
-        if (files.Count == 0) return;
-
-        _logger.LogInformation("Tagging {Count} existing episode files for feed {Name}...", files.Count, feed.Name);
-
-        foreach (var filePath in files)
-        {
-            try
-            {
-                using var tagFile = TagFile.Create(filePath);
-
-                // Skip if already has a title tag
-                if (!string.IsNullOrEmpty(tagFile.Tag.Title))
-                {
-                    continue;
-                }
-
-                // Extract title and year from filename (format: yyyy-MM-dd-Title or yyyy-MM-dd - Title)
-                var fileName = Path.GetFileNameWithoutExtension(filePath);
-                var title = fileName;
-                uint year = (uint)DateTime.Now.Year;
-
-                // Find the separator after the date portion
-                var dashIdx = fileName.IndexOf('-');
-                if (dashIdx >= 10)
-                {
-                    var datePart = fileName.Substring(0, 10);
-                    if (DateTime.TryParseExact(datePart, "yyyy-MM-dd", null,
-                        System.Globalization.DateTimeStyles.None, out var pubDate))
-                    {
-                        title = fileName.Substring(dashIdx + 1).TrimStart('-', ' ');
-                        year = (uint)pubDate.Year;
-                    }
-                }
-
-                tagFile.Tag.Title = title;
-                tagFile.Tag.Performers = new[] { feed.Name };
-                tagFile.Tag.AlbumArtists = new[] { "Podcast" };
-                tagFile.Tag.Album = feed.Name;
-                tagFile.Tag.Year = year;
-                tagFile.Tag.Genres = new[] { "Podcast" };
-                tagFile.Save();
-
-                _logger.LogInformation("Tagged existing episode: {Path}", filePath);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Could not tag existing episode: {Path}", filePath);
-            }
-
-            await Task.Delay(2000);
-        }
-
-        // Write marker file to indicate tagging is complete for this feed
-        try
-        {
-            File.WriteAllText(markerPath, DateTime.Now.ToString("o"));
-            _logger.LogInformation("Finished tagging existing episodes for feed {Name}", feed.Name);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not write tagging marker for feed {Name}", feed.Name);
-        }
     }
 
     /// <summary>

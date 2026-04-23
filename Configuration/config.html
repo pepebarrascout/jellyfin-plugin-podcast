@@ -84,7 +84,7 @@
         <div class="content-primary">
 
             <h1>Podcasts</h1>
-            <p>Gestiona tus suscripciones a podcasts. Los feeds RSS se actualizan automaticamente segun la frecuencia configurada. Los episodios se descargan en la carpeta <code>podcasts/</code> dentro de tu biblioteca de musica.</p>
+            <p>Gestiona tus suscripciones a podcasts. Los feeds RSS se actualizan automaticamente segun la frecuencia configurada. Los episodios se descargan en la carpeta <code>Podcasts/</code> dentro de tu biblioteca de musica.</p>
 
             <!-- Status Banner -->
             <div id="podcastsStatus" style="padding: 0.8em 1em; margin-bottom: 1.5em; border-radius: 4px; display: none;"></div>
@@ -157,7 +157,9 @@
             <div id="podcastsFeedsList"></div>
 
             <!-- Bottom Actions -->
-            <div id="bottomActions" style="margin-top: 1.5em; display: flex; gap: 0.8em; flex-wrap: wrap;"></div>
+            <div id="bottomActions" style="margin-top: 1.5em; display: flex; gap: 0.8em; flex-wrap: wrap;">
+                <button id="btnDeleteListened" type="button" is="emby-button" class="raised btn-danger" data-action="delete-listened"><span>Borrar escuchados</span></button>
+            </div>
 
             <div style="margin-top: 2em; color: #888; font-size: 0.85em;">
                 <h3 style="font-size: 1em; color: #aaa;">Programación</h3>
@@ -377,7 +379,7 @@
                     '<p style="margin:0;">No hay podcasts agregados.</p>' +
                     '<p style="margin:0.5em 0 0;">Haz clic en "Agregar Podcast" para comenzar.</p>' +
                     '</div>';
-            document.getElementById('bottomActions').innerHTML = '';
+            document.getElementById('bottomActions').style.display = 'none';
                 return;
             }
 
@@ -412,12 +414,9 @@
             html += '</div>';
             container.innerHTML = html;
 
-            // Add bottom action button
+            // Show/hide bottom action buttons based on whether feeds exist
             var bottomActions = document.getElementById('bottomActions');
-            bottomActions.innerHTML = '<button id="btnDeleteListened" type="button" is="emby-button" class="raised btn-danger"><span>Borrar escuchados</span></button>';
-            document.getElementById('btnDeleteListened').addEventListener('click', function () {
-                deleteListened();
-            });
+            bottomActions.style.display = 'flex';
         }
 
         // --- Show the add/edit form ---
@@ -689,6 +688,14 @@
             else if (action === 'delete') deleteFeed(id);
         });
 
+        // --- Event delegation for bottom action buttons ---
+        document.getElementById('bottomActions').addEventListener('click', function (e) {
+            var btn = e.target.closest('button[data-action]');
+            if (!btn) return;
+            var action = btn.getAttribute('data-action');
+            if (action === 'delete-listened') deleteListened();
+        });
+
         // --- Static button event bindings ---
         document.getElementById('btnAddFeed').addEventListener('click', function () {
             editingFeedId = null;
@@ -741,27 +748,32 @@
 
         // --- Delete listened episodes manually ---
         function deleteListened() {
+            if (!currentConfig || !currentConfig.feeds || currentConfig.feeds.length === 0) {
+                Dashboard.alert({ title: 'Sin podcasts', message: 'No hay podcasts configurados.' });
+                return;
+            }
             if (!confirm('Deseas borrar todos los episodios que ya se escucharon? Esta accion no se puede deshacer.')) {
                 return;
             }
 
             showUpdateProgress('Borrando episodios escuchados...');
             var btn = document.getElementById('btnDeleteListened');
-            btn.disabled = true;
+            if (btn) btn.disabled = true;
 
             apiPost('Plugins/Podcasts/DeleteListened', null)
                 .then(function (result) {
-                    btn.disabled = false;
+                    if (btn) btn.disabled = false;
                     hideUpdateProgress();
                     if (result.success) {
                         Dashboard.alert({ title: 'Borrado completo', message: result.message });
                     } else {
                         Dashboard.alert({ title: 'Error', message: result.error || 'Error desconocido.' });
                     }
+                    loadConfig();
                 })
                 .catch(function (error) {
                     console.error('[Podcasts] DeleteListened error:', error);
-                    btn.disabled = false;
+                    if (btn) btn.disabled = false;
                     hideUpdateProgress();
                     Dashboard.alert({ title: 'Error', message: 'No se pudo conectar al servidor.' });
                 });
