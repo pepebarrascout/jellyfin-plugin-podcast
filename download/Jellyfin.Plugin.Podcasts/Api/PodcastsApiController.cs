@@ -207,8 +207,8 @@ public class PodcastsApiController : ControllerBase
                 return Ok(new { success = false, error = "El feed RSS no contiene episodios de audio válidos." });
             }
 
-            _logger.LogInformation("Feed RSS validado exitosamente: {Url} con {Count} episodios", url, episodeCount);
-            return Ok(new { success = true, message = $"Feed RSS válido con {items.Count} episodio(s) encontrado(s). Listo para agregar." });
+            _logger.LogInformation("Feed RSS validado exitosamente: {Url} con {Count} episodios", url, items.Count);
+            return Ok(new { success = true, message = "Feed RSS valido. Listo para agregar." });
         }
         catch (HttpRequestException ex)
         {
