@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/pepebarrascout/jellyfin-plugin-podcast/main/logo.png",
     "versions": [
       {
+        "version": "0.0.1.9",
+        "changelog": "- Fixed: Playlist generation now uses IPlaylistManager API (database-backed) instead of raw XML file\n- Fixed: Playlist items are properly resolved through Jellyfin library (no more 'media source not found' error)\n- Fixed: Existing playlist is automatically deleted and recreated on each generation\n- Fixed: Checksum uses MD5 for Jellyfin compatibility",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/download/v0.0.1.9/jellyfin-plugin-podcasts_0.0.1.9.zip",
+        "checksum": "3570ACB562F6B9EEB85183D3AD93FDEC",
+        "timestamp": "2026-04-23T10:30:00Z"
+      },
+      {
         "version": "0.0.1.8",
         "changelog": "- Fixed: Playlist XML now includes RunningTime (total seconds), Genres (Podcast), OwnerUserId, and Shares fields\n- Fixed: 'Borrar escuchados' button now has red background styling\n- Matches Jellyfin playlist XML format for proper library integration",
         "targetAbi": "10.11.0.0",

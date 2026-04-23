@@ -10,6 +10,7 @@ using Jellyfin.Plugin.Podcasts.Model;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Playlists;
 using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.Playlists;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Podcasts;
@@ -443,8 +444,9 @@ public class PodcastService
     /// Generates a daily auto-playlist containing all unlistened episodes from
     /// podcast feeds configured with IncludeInAutoPlaylist = true.
     /// Episodes are ordered chronologically by their publication date (oldest first).
-    /// The playlist is saved in Jellyfin's native XML playlist format (playlist.xml)
-    /// inside a directory named "Podcast Auto Playlist" within the Jellyfin playlists folder.
+    /// Uses IPlaylistManager to create a proper database-backed playlist in Jellyfin,
+    /// which ensures items are properly resolved and playable through the library.
+    /// If a playlist named "Podcast Auto Playlist" already exists, it is deleted and recreated.
     /// </summary>
     public async Task GenerateAutoPlaylistAsync()
     {
@@ -478,98 +480,97 @@ public class PodcastService
                 .ToList();
         }
 
-        // Filter out episodes whose files don't actually exist on disk
+        // Resolve episodes to Jellyfin library item IDs
         var basePath = GetPodcastBasePath();
-        playlistEpisodes = playlistEpisodes.Where(ep =>
-        {
-            var podcastName = GetPodcastNameForFeed(ep.FeedUrl);
-            var fullPath = Path.Combine(basePath, podcastName, ep.LocalFileName);
-            return File.Exists(fullPath);
-        }).ToList();
+        var itemIds = new List<Guid>();
+        var skippedCount = 0;
 
-        if (playlistEpisodes.Count == 0)
+        foreach (var episode in playlistEpisodes)
         {
-            _logger.LogWarning("No unlistened episodes with existing files found for auto-playlist");
-        }
-        var playlistsPath = GetPlaylistsFolderPath();
-        var playlistDir = Path.Combine(playlistsPath, "Podcast Auto Playlist");
-        Directory.CreateDirectory(playlistDir);
-        var playlistPath = Path.Combine(playlistDir, "playlist.xml");
-
-        try
-        {
-            // Calculate total runtime by looking up each episode in Jellyfin's library
-            long totalTicks = 0;
-            foreach (var episode in playlistEpisodes)
-            {
-                try
-                {
-                    var podcastName = GetPodcastNameForFeed(episode.FeedUrl);
-                    var fullPath = Path.Combine(basePath, podcastName, episode.LocalFileName);
-                    var item = _libraryManager.FindByPath(fullPath, false);
-                    if (item?.RunTimeTicks != null && item.RunTimeTicks > 0)
-                    {
-                        totalTicks += item.RunTimeTicks.Value;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug("Could not get runtime for episode {Title}: {Error}", episode.Title, ex.Message);
-                }
-            }
-            var totalSeconds = totalTicks / 10_000_000;
-
-            // Get owner user ID (first user, typically the admin)
-            var ownerUserId = string.Empty;
             try
             {
-                var firstUser = _userManager.Users.FirstOrDefault();
-                if (firstUser != null)
+                var podcastName = GetPodcastNameForFeed(episode.FeedUrl);
+                var fullPath = Path.Combine(basePath, podcastName, episode.LocalFileName);
+
+                if (!File.Exists(fullPath))
                 {
-                    ownerUserId = firstUser.Id.ToString("N");
+                    _logger.LogDebug("Episode file not found on disk: {Path}", fullPath);
+                    skippedCount++;
+                    continue;
+                }
+
+                var item = _libraryManager.FindByPath(fullPath, false);
+                if (item != null)
+                {
+                    itemIds.Add(item.Id);
+                }
+                else
+                {
+                    _logger.LogWarning("Episode file exists but not found in Jellyfin library: {Path}", fullPath);
+                    skippedCount++;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogDebug("Could not get owner user ID: {Error}", ex.Message);
+                _logger.LogDebug("Could not resolve episode {Title}: {Error}", episode.Title, ex.Message);
+                skippedCount++;
+            }
+        }
+
+        if (itemIds.Count == 0)
+        {
+            _logger.LogWarning("No unlistened episodes found in Jellyfin library for auto-playlist (skipped {Skipped} unresolved)", skippedCount);
+            return;
+        }
+
+        // Get owner user (first user, typically the admin)
+        var user = _userManager.Users.FirstOrDefault();
+        if (user == null)
+        {
+            _logger.LogWarning("No users found in Jellyfin, cannot create playlist");
+            return;
+        }
+
+        try
+        {
+            // Check if playlist already exists for this user
+            var existingPlaylists = _playlistManager.GetPlaylists(user.Id);
+            var existingPlaylist = existingPlaylists
+                .FirstOrDefault(p => string.Equals(p.Name, "Podcast Auto Playlist", StringComparison.OrdinalIgnoreCase));
+
+            if (existingPlaylist != null)
+            {
+                // Delete the existing playlist so we can recreate it with fresh items
+                _logger.LogInformation("Existing 'Podcast Auto Playlist' found (ID: {Id}), deleting for recreation", existingPlaylist.Id);
+                try
+                {
+                    await _playlistManager.RemovePlaylistsAsync(existingPlaylist.Id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not delete existing playlist, will try to update it instead");
+                }
             }
 
-            var doc = new XDocument(
-                new XDeclaration("1.0", "utf-8", "yes"),
-                new XElement("Item",
-                    new XElement("Added", DateTime.Now.ToString("MM/dd/yyyy HH:mm:ss")),
-                    new XElement("LockData", "false"),
-                    new XElement("LocalTitle", "Podcast Auto Playlist"),
-                    new XElement("RunningTime", totalSeconds.ToString()),
-                    new XElement("Genres",
-                        new XElement("Genre", "Podcast")
-                    ),
-                    new XElement("OwnerUserId", ownerUserId),
-                    new XElement("PlaylistItems",
-                        playlistEpisodes.Select(episode =>
-                        {
-                            var podcastName = GetPodcastNameForFeed(episode.FeedUrl);
-                            var fullPath = Path.Combine(basePath, podcastName, episode.LocalFileName);
-                            return new XElement("PlaylistItem",
-                                new XElement("Path", fullPath));
-                        })
-                    ),
-                    new XElement("Shares"),
-                    new XElement("PlaylistMediaType", "Audio")
-                )
-            );
+            // Create new playlist with all items at once
+            var request = new PlaylistCreationRequest
+            {
+                Name = "Podcast Auto Playlist",
+                ItemIdList = itemIds,
+                UserId = user.Id,
+                MediaType = Jellyfin.Data.Enums.MediaType.Audio
+            };
 
-            doc.Save(playlistPath);
+            var playlist = await _playlistManager.CreatePlaylist(request);
 
-            _logger.LogInformation("Auto-playlist generated with {Count} episodes at {Path}",
-                playlistEpisodes.Count, playlistPath);
+            _logger.LogInformation(
+                "Auto-playlist created/updated with {Count} episodes (skipped {Skipped} unresolved). Playlist ID: {PlaylistId}",
+                itemIds.Count, skippedCount, playlist.Id);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate auto-playlist");
+            _logger.LogError(ex, "Failed to generate auto-playlist via IPlaylistManager");
         }
-
-        await Task.CompletedTask;
     }
 
     /// <summary>
