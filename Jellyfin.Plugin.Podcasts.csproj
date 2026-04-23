@@ -15,6 +15,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="download/**/*.cs" />
+    <EmbeddedResource Remove="download/**/*.html" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="Configuration\config.html" />
   </ItemGroup>
 
