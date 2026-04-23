@@ -4,7 +4,7 @@
         <div class="content-primary">
 
             <h1>Podcasts</h1>
-            <p>Gestiona tus suscripciones a podcasts. Los feeds RSS se actualizan automáticamente según la frecuencia configurada. Los episodios se descargan en la carpeta <code>podcasts/</code> dentro de tu biblioteca de música.</p>
+            <p>Gestiona tus suscripciones a podcasts. Los feeds RSS se actualizan automaticamente segun la frecuencia configurada. Los episodios se descargan en la carpeta <code>podcasts/</code> dentro de tu biblioteca de musica.</p>
 
             <!-- Status Banner -->
             <div id="podcastsStatus" style="padding: 0.8em 1em; margin-bottom: 1.5em; border-radius: 4px; display: none;"></div>
@@ -15,15 +15,15 @@
 
                 <div class="inputContainer">
                     <label class="inputLabel" for="podcastName">Nombre del Podcast</label>
-                    <input type="text" id="podcastName" class="emby-input" is="emby-input" placeholder="Ej: Podcast de Tecnología" required />
+                    <input type="text" id="podcastName" class="emby-input" is="emby-input" placeholder="Ej: Podcast de Tecnologia" required />
                 </div>
 
                 <div class="selectContainer">
-                    <label class="selectLabel" for="podcastFrequency">Frecuencia de actualización</label>
+                    <label class="selectLabel" for="podcastFrequency">Frecuencia de actualizacion</label>
                     <select id="podcastFrequency" class="emby-select" is="emby-select">
-                        <option value="0">Diario (todos los días a las 00:00)</option>
+                        <option value="0">Diario (todos los dias a las 00:00)</option>
                         <option value="1">Semanal (los lunes a las 00:00)</option>
-                        <option value="2">Mensual (el día 1 a las 00:00)</option>
+                        <option value="2">Mensual (el dia 1 a las 00:00)</option>
                     </select>
                 </div>
 
@@ -36,49 +36,35 @@
                     <label class="selectLabel" for="podcastAutoDelete">Auto-borrado</label>
                     <select id="podcastAutoDelete" class="emby-select" is="emby-select">
                         <option value="0">Nunca</option>
-                        <option value="1">Dos días después de escucharlo</option>
+                        <option value="1">Dos dias despues de escucharlo</option>
                     </select>
-                    <div class="fieldDescription">Solo se borra el episodio específico que ya se escuchó. Los demás episodios no se afectan.</div>
+                    <div class="fieldDescription">Solo se borra el episodio especifico que ya se escucho. Los demas episodios no se afectan.</div>
                 </div>
 
                 <div class="checkboxContainer checkboxContainer-withDescription">
                     <label>
                         <input type="checkbox" id="podcastAutoPlaylist" is="emby-checkbox" />
-                        <span>Incluir en lista de reproducción automática diaria</span>
+                        <span>Incluir en lista de reproduccion automatica diaria</span>
                     </label>
                     <div class="fieldDescription checkboxFieldDescription">
-                        Los episodios no escuchados de este podcast se agregarán a la lista de reproducción automática que se genera cada día a las 01:00.
+                        Los episodios no escuchados de este podcast se agregaran a la lista de reproduccion automatica que se genera cada dia a las 01:00.
                     </div>
                 </div>
 
                 <!-- Validation Status -->
                 <div id="feedValidationResult" style="padding: 0.6em 0.8em; margin: 0.8em 0; border-radius: 4px; display: none;"></div>
 
-                <div style="margin-top: 1em; display: flex; gap: 0.8em;">
-                    <button id="btnValidateFeed" type="button" is="emby-button" class="raised button-submit">
-                        <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span>
-                        Validar Feed
-                    </button>
-                    <button id="btnSaveFeed" type="button" is="emby-button" class="raised button-submit">
-                        <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">save</span>
-                        Guardar
-                    </button>
-                    <button id="btnCancelForm" type="button" is="emby-button" class="raised button-submit">
-                        Cancelar
-                    </button>
+                <div style="margin-top: 1em; display: flex; gap: 0.8em; flex-wrap: wrap;">
+                    <button id="btnValidateFeed" type="button" is="emby-button" class="raised button-submit">Validar Feed</button>
+                    <button id="btnSaveFeed" type="button" is="emby-button" class="raised button-submit">Guardar</button>
+                    <button id="btnCancelForm" type="button" is="emby-button" class="raised">Cancelar</button>
                 </div>
             </div>
 
             <!-- Action Buttons -->
             <div style="margin-bottom: 1.5em; display: flex; gap: 0.8em; flex-wrap: wrap;">
-                <button id="btnAddFeed" type="button" is="emby-button" class="raised">
-                    <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">add</span>
-                    Agregar Podcast
-                </button>
-                <button id="btnUpdateAll" type="button" is="emby-button" class="raised" style="background: #2a4a2a;">
-                    <span class="material-icons button-icon button-icon-left" style="font-size:inherit;">sync</span>
-                    Actualizar Todos
-                </button>
+                <button id="btnAddFeed" type="button" is="emby-button" class="raised button-submit">Agregar Podcast</button>
+                <button id="btnUpdateAll" type="button" is="emby-button" class="raised">Actualizar Todos</button>
             </div>
 
             <!-- Update Progress -->
@@ -90,11 +76,11 @@
             <div id="podcastsFeedsList"></div>
 
             <div style="margin-top: 2em; color: #888; font-size: 0.85em;">
-                <h3 style="font-size: 1em; color: #aaa;">Programación</h3>
+                <h3 style="font-size: 1em; color: #aaa;">Programacion</h3>
                 <ul style="list-style: none; padding: 0; margin: 0;">
-                    <li>&#128340; <strong>00:00</strong> — Actualización de feeds RSS</li>
-                    <li>&#127925; <strong>01:00</strong> — Generación de lista de reproducción automática</li>
-                    <li>&#128465; <strong>02:00</strong> — Procesamiento de auto-borrado</li>
+                    <li>00:00 - Actualizacion de feeds RSS</li>
+                    <li>01:00 - Generacion de lista de reproduccion automatica</li>
+                    <li>02:00 - Procesamiento de auto-borrado</li>
                 </ul>
             </div>
         </div>
@@ -111,7 +97,7 @@
 
         // --- Enum display names ---
         var frequencyNames = { 0: 'Diario', 1: 'Semanal', 2: 'Mensual' };
-        var autoDeleteNames = { 0: 'Nunca', 1: '2 días después de escuchar' };
+        var autoDeleteNames = { 0: 'Nunca', 1: '2 dias despues de escuchar' };
 
         // --- Helper: normalize config keys (camelCase from server, PascalCase legacy) ---
         function normalizeFeeds(feeds) {
@@ -160,7 +146,6 @@
                     cfg[camelKey] = raw[key];
                 }
             }
-            // Normalize feeds list
             if (cfg.feeds || cfg.Feeds) {
                 cfg.feeds = normalizeFeeds(cfg.feeds || cfg.Feeds);
                 cfg.Feeds = cfg.feeds;
@@ -181,7 +166,6 @@
                     serverCfg[pascalKey] = cfg[key];
                 }
             }
-            // Convert feeds to server format
             if (cfg.feeds) {
                 var serverFeeds = cfg.feeds.map(feedToServer);
                 serverCfg.Feeds = serverFeeds;
@@ -190,10 +174,30 @@
             return serverCfg;
         }
 
+        // --- Helper: call plugin API endpoint ---
+        function apiPost(path, params) {
+            var url = ApiClient.getUrl(path);
+            if (params) {
+                var qs = Object.keys(params).map(function (k) {
+                    return k + '=' + encodeURIComponent(params[k]);
+                }).join('&');
+                url += (url.indexOf('?') >= 0 ? '&' : '?') + qs;
+            }
+            return fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Emby-Token': ApiClient.accessToken(),
+                    'Content-Type': 'application/json'
+                }
+            }).then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            });
+        }
+
         // --- Load plugin configuration ---
         function loadConfig() {
             Dashboard.showLoadingMsg();
-
             ApiClient.getPluginConfiguration(PodcastsPluginId).then(function (raw) {
                 currentConfig = normalizeConfig(raw);
                 editingFeedId = null;
@@ -202,11 +206,11 @@
                 hideForm();
                 Dashboard.hideLoadingMsg();
             }).catch(function (error) {
-                console.error('Error loading plugin config:', error);
+                console.error('[Podcasts] Error loading config:', error);
                 Dashboard.hideLoadingMsg();
                 Dashboard.alert({
                     title: 'Error',
-                    message: 'No se pudo cargar la configuración del plugin.'
+                    message: 'No se pudo cargar la configuracion del plugin.'
                 });
             });
         }
@@ -214,19 +218,17 @@
         // --- Save plugin configuration ---
         function saveConfig() {
             if (!currentConfig) return;
-
             Dashboard.showLoadingMsg();
             var serverCfg = configToServer(currentConfig);
-
             ApiClient.updatePluginConfiguration(PodcastsPluginId, serverCfg).then(function (result) {
                 Dashboard.hideLoadingMsg();
                 Dashboard.processPluginConfigurationUpdateResult(result);
             }).catch(function (error) {
-                console.error('Error saving plugin config:', error);
+                console.error('[Podcasts] Error saving config:', error);
                 Dashboard.hideLoadingMsg();
                 Dashboard.alert({
                     title: 'Error',
-                    message: 'No se pudo guardar la configuración.'
+                    message: 'No se pudo guardar la configuracion.'
                 });
             });
         }
@@ -238,18 +240,23 @@
                 banner.style.display = 'none';
                 return;
             }
-
             var feedCount = currentConfig.feeds.length;
             var autoPlaylistCount = currentConfig.feeds.filter(function (f) { return f.includeInAutoPlaylist; }).length;
             var autoDeleteCount = currentConfig.feeds.filter(function (f) { return f.autoDelete === 1; }).length;
-
             banner.style.display = 'block';
             banner.style.backgroundColor = '#1a3a1a';
             banner.style.borderLeft = '4px solid #4CAF50';
             banner.innerHTML =
                 '<strong>' + feedCount + '</strong> podcast' + (feedCount !== 1 ? 's' : '') + ' registrado' + (feedCount !== 1 ? 's' : '') +
-                ' &nbsp;|&nbsp; <strong>' + autoPlaylistCount + '</strong> en lista automática' +
-                ' &nbsp;|&nbsp; <strong>' + autoDeleteCount + '</strong> con auto-borrado';
+                ' | <strong>' + autoPlaylistCount + '</strong> en lista automatica' +
+                ' | <strong>' + autoDeleteCount + '</strong> con auto-borrado';
+        }
+
+        // --- Utility: HTML escape ---
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         // --- Render feeds list ---
@@ -264,58 +271,36 @@
                 return;
             }
 
-            var html = '<table style="width: 100%; border-collapse: collapse;">';
-            html += '<thead><tr style="border-bottom: 2px solid #333; text-align: left;">';
-            html += '<th style="padding: 0.6em;">Nombre</th>';
-            html += '<th style="padding: 0.6em;">Frecuencia</th>';
-            html += '<th style="padding: 0.6em;">Feed RSS</th>';
-            html += '<th style="padding: 0.6em;">Auto-borrado</th>';
-            html += '<th style="padding: 0.6em;">Lista Auto</th>';
-            html += '<th style="padding: 0.6em;">Última Act.</th>';
-            html += '<th style="padding: 0.6em; text-align: right;">Acciones</th>';
-            html += '</tr></thead><tbody>';
-
+            var html = '<div class="paperList">';
             currentConfig.feeds.forEach(function (feed) {
                 var lastUpdate = feed.lastUpdateDate
                     ? new Date(feed.lastUpdateDate).toLocaleDateString('es')
                     : 'Nunca';
 
-                html += '<tr style="border-bottom: 1px solid #2a2a2a;">';
-                html += '<td style="padding: 0.6em; font-weight: 500;">' + escapeHtml(feed.name) + '</td>';
-                html += '<td style="padding: 0.6em;">' + (frequencyNames[feed.frequency] || 'Desconocido') + '</td>';
-                html += '<td style="padding: 0.6em; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' + escapeHtml(feed.feedUrl) + '">' + escapeHtml(feed.feedUrl) + '</td>';
-                html += '<td style="padding: 0.6em;">' + (autoDeleteNames[feed.autoDelete] || 'Nunca') + '</td>';
-                html += '<td style="padding: 0.6em; text-align: center;">' + (feed.includeInAutoPlaylist ? '&#9989;' : '&#10060;') + '</td>';
-                html += '<td style="padding: 0.6em; color: #888;">' + lastUpdate + '</td>';
-                html += '<td style="padding: 0.6em; text-align: right; white-space: nowrap;">';
-                html += '<button type="button" class="emby-button" is="emby-button" data-action="update" data-id="' + feed.id + '" data-name="' + escapeHtml(feed.name) + '" style="margin-right: 0.4em; padding: 0.3em 0.8em; font-size: 0.85em; color: #4CAF50;">&#128260; Actualizar</button>';
-                html += '<button type="button" class="emby-button" is="emby-button" data-action="edit" data-id="' + feed.id + '" style="margin-right: 0.4em; padding: 0.3em 0.8em; font-size: 0.85em;">Editar</button>';
-                html += '<button type="button" class="emby-button" is="emby-button" data-action="delete" data-id="' + feed.id + '" style="padding: 0.3em 0.8em; font-size: 0.85em; color: #ff6b6b;">Borrar</button>';
-                html += '</td>';
-                html += '</tr>';
-            });
+                html += '<div class="listItem listItem-border" data-feed-id="' + feed.id + '">';
+                html += '<div class="listItemBody">';
+                html += '<div class="listItemBodyText">';
+                html += '<h3 class="listItemBodyText primary">' + escapeHtml(feed.name) + '</h3>';
+                html += '<div class="listItemBodyText secondary">';
+                html += frequencyNames[feed.frequency] || 'Desconocido';
+                html += ' &bull; ' + (autoDeleteNames[feed.autoDelete] || 'Nunca');
+                html += ' &bull; Auto-playlist: ' + (feed.includeInAutoPlaylist ? 'Si' : 'No');
+                html += ' &bull; Ultima act.: ' + lastUpdate;
+                html += '</div>';
+                html += '<div class="listItemBodyText secondary" style="color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(feed.feedUrl) + '</div>';
+                html += '</div>';
+                html += '</div>';
+                html += '<div class="listItemButton">';
 
-            html += '</tbody></table>';
+                html += '<button type="button" is="emby-button" class="raised button-submit" data-action="update" data-id="' + feed.id + '" data-name="' + escapeHtml(feed.name) + '">Actualizar</button>';
+                html += '<button type="button" is="emby-button" class="raised" data-action="edit" data-id="' + feed.id + '">Editar</button>';
+                html += '<button type="button" is="emby-button" class="raised" data-action="delete" data-id="' + feed.id + '" data-name="' + escapeHtml(feed.name) + '">Borrar</button>';
+
+                html += '</div>';
+                html += '</div>';
+            });
+            html += '</div>';
             container.innerHTML = html;
-
-            // Bind action buttons
-            container.querySelectorAll('button[data-action="update"]').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    updateSingleFeed(this.getAttribute('data-name'));
-                });
-            });
-
-            container.querySelectorAll('button[data-action="edit"]').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    editFeed(this.getAttribute('data-id'));
-                });
-            });
-
-            container.querySelectorAll('button[data-action="delete"]').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    deleteFeed(this.getAttribute('data-id'));
-                });
-            });
         }
 
         // --- Show the add/edit form ---
@@ -358,15 +343,14 @@
         function showValidationResult(success, message) {
             var el = document.getElementById('feedValidationResult');
             el.style.display = 'block';
-
             if (success) {
                 el.style.backgroundColor = '#1a3a1a';
                 el.style.color = '#4CAF50';
-                el.innerHTML = '&#9989; ' + escapeHtml(message);
+                el.textContent = 'OK: ' + message;
             } else {
                 el.style.backgroundColor = '#3a1a1a';
                 el.style.color = '#ff6b6b';
-                el.innerHTML = '&#10060; ' + escapeHtml(message);
+                el.textContent = 'Error: ' + message;
             }
         }
 
@@ -381,8 +365,6 @@
                 showValidationResult(false, 'Ingresa una URL de feed RSS.');
                 return;
             }
-
-            // Basic URL validation
             try {
                 var uri = new URL(url);
                 if (uri.protocol !== 'http:' && uri.protocol !== 'https:') {
@@ -390,7 +372,7 @@
                     return;
                 }
             } catch (e) {
-                showValidationResult(false, 'La URL proporcionada no es válida.');
+                showValidationResult(false, 'La URL proporcionada no es valida.');
                 return;
             }
 
@@ -399,28 +381,25 @@
             validateBtn.disabled = true;
             validateBtn.textContent = 'Validando...';
 
-            // Validate via server-side API (avoids CORS issues)
-            ApiClient.ajax({
-                type: 'POST',
-                url: ApiClient.getUrl('Plugins/Podcasts/ValidateFeed') + '?url=' + encodeURIComponent(url),
-                dataType: 'json'
-            }).then(function (result) {
-                validateBtn.disabled = false;
-                validateBtn.innerHTML = '<span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span> Validar Feed';
-
-                if (result.success) {
-                    isFormValidated = true;
-                    showValidationResult(true, result.message);
-                } else {
+            apiPost('Plugins/Podcasts/ValidateFeed', { url: url })
+                .then(function (result) {
+                    validateBtn.disabled = false;
+                    validateBtn.textContent = 'Validar Feed';
+                    if (result.success) {
+                        isFormValidated = true;
+                        showValidationResult(true, result.message);
+                    } else {
+                        isFormValidated = false;
+                        showValidationResult(false, result.error || 'Error desconocido.');
+                    }
+                })
+                .catch(function (error) {
+                    console.error('[Podcasts] Validate feed error:', error);
+                    validateBtn.disabled = false;
+                    validateBtn.textContent = 'Validar Feed';
                     isFormValidated = false;
-                    showValidationResult(false, result.error || 'Error desconocido.');
-                }
-            }).catch(function (error) {
-                validateBtn.disabled = false;
-                validateBtn.innerHTML = '<span class="material-icons button-icon button-icon-left" style="font-size:inherit;">check_circle</span> Validar Feed';
-                isFormValidated = false;
-                showValidationResult(false, 'No se pudo conectar al servidor para validar el feed.');
-            });
+                    showValidationResult(false, 'No se pudo conectar al servidor para validar el feed.');
+                });
         }
 
         // --- Save feed (add or update) ---
@@ -431,7 +410,6 @@
             var autoDelete = parseInt(document.getElementById('podcastAutoDelete').value, 10);
             var includeInAutoPlaylist = document.getElementById('podcastAutoPlaylist').checked;
 
-            // Validate fields
             if (!name) {
                 Dashboard.alert({ title: 'Campo requerido', message: 'Ingresa el nombre del podcast.' });
                 return;
@@ -440,14 +418,11 @@
                 Dashboard.alert({ title: 'Campo requerido', message: 'Ingresa el enlace del feed RSS.' });
                 return;
             }
-
-            // Require validation for new feeds
             if (!editingFeedId && !isFormValidated) {
-                Dashboard.alert({ title: 'Validación requerida', message: 'Debes validar el feed RSS antes de agregarlo.' });
+                Dashboard.alert({ title: 'Validacion requerida', message: 'Debes validar el feed RSS antes de agregarlo.' });
                 return;
             }
 
-            // Check for duplicate name (excluding current feed when editing)
             var duplicateName = currentConfig.feeds.find(function (f) {
                 return f.name.toLowerCase() === name.toLowerCase() && f.id !== editingFeedId;
             });
@@ -457,7 +432,6 @@
             }
 
             if (editingFeedId) {
-                // Update existing feed
                 var feedIndex = currentConfig.feeds.findIndex(function (f) { return f.id === editingFeedId; });
                 if (feedIndex >= 0) {
                     currentConfig.feeds[feedIndex].name = name;
@@ -467,7 +441,6 @@
                     currentConfig.feeds[feedIndex].includeInAutoPlaylist = includeInAutoPlaylist;
                 }
             } else {
-                // Add new feed
                 currentConfig.feeds.push({
                     id: crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); }),
                     name: name,
@@ -489,14 +462,12 @@
         function editFeed(id) {
             var feed = currentConfig.feeds.find(function (f) { return f.id === id; });
             if (!feed) return;
-
             editingFeedId = id;
             document.getElementById('podcastName').value = feed.name;
             document.getElementById('podcastFrequency').value = String(feed.frequency);
             document.getElementById('podcastFeedUrl').value = feed.feedUrl;
             document.getElementById('podcastAutoDelete').value = String(feed.autoDelete);
             document.getElementById('podcastAutoPlaylist').checked = feed.includeInAutoPlaylist;
-
             showForm('edit');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -505,34 +476,100 @@
         function deleteFeed(id) {
             var feed = currentConfig.feeds.find(function (f) { return f.id === id; });
             if (!feed) return;
-
-            Dashboard.confirm({
-                title: 'Borrar Podcast',
-                message: '¿Estás seguro de que quieres borrar "' + escapeHtml(feed.name) + '"? Los episodios descargados no se eliminarán automáticamente.',
-                confirmText: 'Borrar',
-                cancelText: 'Cancelar'
-            }).then(function (confirmed) {
-                if (confirmed) {
-                    currentConfig.feeds = currentConfig.feeds.filter(function (f) { return f.id !== id; });
-                    saveConfig();
-                    renderFeedsList();
-                    updateStatusBanner();
-                }
-            });
+            if (!confirm('Estas seguro de que quieres borrar "' + feed.name + '"? Los episodios descargados no se eliminaran automaticamente.')) {
+                return;
+            }
+            currentConfig.feeds = currentConfig.feeds.filter(function (f) { return f.id !== id; });
+            saveConfig();
+            renderFeedsList();
+            updateStatusBanner();
         }
 
-        // --- Utility: HTML escape ---
-        function escapeHtml(text) {
-            var div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+        // --- Update progress helpers ---
+        function showUpdateProgress(message) {
+            var el = document.getElementById('updateProgress');
+            var text = document.getElementById('updateProgressText');
+            el.style.display = 'block';
+            el.style.backgroundColor = '#1a2a3a';
+            el.style.borderLeft = '4px solid #2196F3';
+            text.textContent = message;
         }
 
-        // --- Event bindings ---
-        document.querySelector('#podcastsConfigPage').addEventListener('pageshow', function () {
-            loadConfig();
+        function hideUpdateProgress() {
+            document.getElementById('updateProgress').style.display = 'none';
+        }
+
+        // --- Update all feeds ---
+        function updateAllFeeds() {
+            if (!currentConfig || !currentConfig.feeds || currentConfig.feeds.length === 0) {
+                Dashboard.alert({ title: 'Sin podcasts', message: 'No hay podcasts configurados para actualizar.' });
+                return;
+            }
+            if (!confirm('Deseas actualizar todos los podcasts ahora? Esto puede tomar varios minutos.')) {
+                return;
+            }
+
+            showUpdateProgress('Actualizando todos los podcasts... Por favor espera.');
+            var btn = document.getElementById('btnUpdateAll');
+            btn.disabled = true;
+
+            apiPost('Plugins/Podcasts/UpdateAll', null)
+                .then(function (result) {
+                    btn.disabled = false;
+                    hideUpdateProgress();
+                    if (result.success) {
+                        Dashboard.alert({ title: 'Actualizacion completa', message: result.message });
+                    } else {
+                        Dashboard.alert({ title: 'Error', message: result.error || 'Error desconocido.' });
+                    }
+                    loadConfig();
+                })
+                .catch(function (error) {
+                    console.error('[Podcasts] UpdateAll error:', error);
+                    btn.disabled = false;
+                    hideUpdateProgress();
+                    Dashboard.alert({ title: 'Error', message: 'No se pudo conectar al servidor para actualizar.' });
+                });
+        }
+
+        // --- Update single feed ---
+        function updateSingleFeed(name) {
+            if (!confirm('Deseas actualizar "' + name + '" ahora?')) {
+                return;
+            }
+
+            showUpdateProgress('Actualizando "' + name + '"...');
+
+            apiPost('Plugins/Podcasts/UpdateFeed', { name: name })
+                .then(function (result) {
+                    hideUpdateProgress();
+                    if (result.success) {
+                        Dashboard.alert({ title: 'Actualizado', message: result.message });
+                    } else {
+                        Dashboard.alert({ title: 'Error', message: result.error || 'Error desconocido.' });
+                    }
+                    loadConfig();
+                })
+                .catch(function (error) {
+                    console.error('[Podcasts] UpdateFeed error:', error);
+                    hideUpdateProgress();
+                    Dashboard.alert({ title: 'Error', message: 'No se pudo conectar al servidor para actualizar.' });
+                });
+        }
+
+        // --- Event delegation for table action buttons ---
+        document.getElementById('podcastsFeedsList').addEventListener('click', function (e) {
+            var btn = e.target.closest('button[data-action]');
+            if (!btn) return;
+            var action = btn.getAttribute('data-action');
+            var id = btn.getAttribute('data-id');
+            var name = btn.getAttribute('data-name');
+            if (action === 'update') updateSingleFeed(name);
+            else if (action === 'edit') editFeed(id);
+            else if (action === 'delete') deleteFeed(id);
         });
 
+        // --- Static button event bindings ---
         document.getElementById('btnAddFeed').addEventListener('click', function () {
             editingFeedId = null;
             showForm('add');
@@ -554,90 +591,10 @@
             updateAllFeeds();
         });
 
-        // --- Manual update functions ---
-        function showUpdateProgress(message) {
-            var el = document.getElementById('updateProgress');
-            var text = document.getElementById('updateProgressText');
-            el.style.display = 'block';
-            el.style.backgroundColor = '#1a2a3a';
-            el.style.borderLeft = '4px solid #2196F3';
-            text.innerHTML = '&#128260; ' + escapeHtml(message);
-        }
-
-        function hideUpdateProgress() {
-            document.getElementById('updateProgress').style.display = 'none';
-        }
-
-        function updateAllFeeds() {
-            if (!currentConfig || !currentConfig.feeds || currentConfig.feeds.length === 0) {
-                Dashboard.alert({ title: 'Sin podcasts', message: 'No hay podcasts configurados para actualizar.' });
-                return;
-            }
-
-            Dashboard.confirm({
-                title: 'Actualizar Todos',
-                message: '¿Deseas actualizar todos los podcasts ahora? Esto puede tomar varios minutos.',
-                confirmText: 'Actualizar',
-                cancelText: 'Cancelar'
-            }).then(function (confirmed) {
-                if (confirmed) {
-                    showUpdateProgress('Actualizando todos los podcasts... Por favor espera.');
-                    var btn = document.getElementById('btnUpdateAll');
-                    btn.disabled = true;
-
-                    ApiClient.ajax({
-                        type: 'POST',
-                        url: ApiClient.getUrl('Plugins/Podcasts/UpdateAll'),
-                        dataType: 'json'
-                    }).then(function (result) {
-                        btn.disabled = false;
-                        hideUpdateProgress();
-                        if (result.success) {
-                            Dashboard.alert({ title: 'Actualización completa', message: result.message });
-                        } else {
-                            Dashboard.alert({ title: 'Error', message: result.error || 'Error desconocido.' });
-                        }
-                        // Reload config to update LastUpdateDate display
-                        loadConfig();
-                    }).catch(function () {
-                        btn.disabled = false;
-                        hideUpdateProgress();
-                        Dashboard.alert({ title: 'Error', message: 'No se pudo conectar al servidor para actualizar.' });
-                    });
-                }
-            });
-        }
-
-        function updateSingleFeed(name) {
-            Dashboard.confirm({
-                title: 'Actualizar Podcast',
-                message: '¿Deseas actualizar "' + escapeHtml(name) + '" ahora?',
-                confirmText: 'Actualizar',
-                cancelText: 'Cancelar'
-            }).then(function (confirmed) {
-                if (confirmed) {
-                    showUpdateProgress('Actualizando "' + escapeHtml(name) + '"...');
-
-                    ApiClient.ajax({
-                        type: 'POST',
-                        url: ApiClient.getUrl('Plugins/Podcasts/UpdateFeed') + '?name=' + encodeURIComponent(name),
-                        dataType: 'json'
-                    }).then(function (result) {
-                        hideUpdateProgress();
-                        if (result.success) {
-                            Dashboard.alert({ title: 'Actualizado', message: result.message });
-                        } else {
-                            Dashboard.alert({ title: 'Error', message: result.error || 'Error desconocido.' });
-                        }
-                        // Reload config to update LastUpdateDate display
-                        loadConfig();
-                    }).catch(function () {
-                        hideUpdateProgress();
-                        Dashboard.alert({ title: 'Error', message: 'No se pudo conectar al servidor para actualizar.' });
-                    });
-                }
-            });
-        }
+        // --- Load config when page is shown ---
+        document.querySelector('#podcastsConfigPage').addEventListener('pageshow', function () {
+            loadConfig();
+        });
 
     </script>
 </div>
