@@ -64,3 +64,33 @@ Stage Summary:
 - Plugin DLL: jellyfin-plugin-podcasts_1.0.0.0.zip (76KB compiled, 26KB compressed)
 - Manifest URL: https://raw.githubusercontent.com/pepebarrascout/jellyfin-plugin-podcast/main/manifest.json
 - All code compiles and pushes successfully
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix frequency and auto-delete display persistence in config page (v0.0.1.6)
+
+Work Log:
+- Analyzed XML config file: Frequency stored as "Daily", AutoDelete as "AfterTwoDays" (enum string names)
+- Analyzed C# enums: UpdateFrequency(Daily=0, Weekly=1, Monthly=2), AutoDeleteOption(Never=0, AfterTwoDays=1)
+- Identified root cause: Jellyfin API returns enum values as string names ("Daily", "AfterTwoDays"), but JS expected numeric values (0, 1, 2)
+- frequencyNames["Daily"] was undefined → displayed "Desconocido"
+- autoDeleteNames["AfterTwoDays"] was undefined → displayed "Nunca"
+- Added toNumericEnum() helper function to convert string enum names to numbers
+- Added frequencyStringMap and autoDeleteStringMap for string-to-number conversion
+- Added frequencyNumberMap and autoDeleteNumberMap for number-to-string conversion in feedToServer()
+- Updated normalizeFeeds() to use toNumericEnum() for both frequency and autoDelete
+- Updated feedToServer() to convert numbers back to string names for server compatibility
+- Bumped version to 0.0.1.6 in .csproj and meta.json
+- Updated manifest.json with v0.0.1.6 entry (descending order, first position)
+- Timestamp: 2026-04-23T09:00:00Z
+- Clean build verified with strings command - all enum mapping code present in DLL
+- Created ZIP, calculated MD5 checksum: A6A482C7331EB6B709A2B8E02A30658A
+- Pushed to GitHub, tagged v0.0.1.6, created release (not pre-release)
+- Release URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/tag/v0.0.1.6
+
+Stage Summary:
+- Fixed the core issue: enum string values from server now properly converted to numbers for display
+- Both display (feed list) and editing (dropdown pre-population) will now work correctly
+- Saving preserves the string enum format for XML compatibility
+- v0.0.1.6 Alpha published successfully
