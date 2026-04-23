@@ -169,6 +169,21 @@
         var frequencyNames = { 0: 'Diario', 1: 'Semanal', 2: 'Mensual' };
         var autoDeleteNames = { 0: 'Nunca', 1: '2 dias despues de escuchar' };
 
+        // --- Enum string-to-number mappings (server returns enum names as strings) ---
+        var frequencyStringMap = { 'Daily': 0, 'Weekly': 1, 'Monthly': 2, 'daily': 0, 'weekly': 1, 'monthly': 2 };
+        var autoDeleteStringMap = { 'Never': 0, 'AfterTwoDays': 1, 'never': 0, 'aftertwodays': 1 };
+
+        // --- Helper: convert a value that could be a string enum name or a number into a number ---
+        function toNumericEnum(val, stringMap, defaultVal) {
+            if (typeof val === 'number') return val;
+            if (typeof val === 'string') {
+                var trimmed = val.trim();
+                if (trimmed !== '' && !isNaN(Number(trimmed))) return Number(trimmed);
+                if (stringMap[trimmed] !== undefined) return stringMap[trimmed];
+            }
+            return defaultVal;
+        }
+
         // --- Helper: normalize config keys (camelCase from server, PascalCase legacy) ---
         function normalizeFeeds(feeds) {
             if (!feeds) return [];
@@ -176,14 +191,24 @@
                 return {
                     id: f.id || f.Id || '',
                     name: f.name || f.Name || '',
-                    frequency: f.frequency !== undefined ? f.frequency : (f.Frequency !== undefined ? f.Frequency : 0),
+                    frequency: toNumericEnum(
+                        f.frequency !== undefined ? f.frequency : (f.Frequency !== undefined ? f.Frequency : 0),
+                        frequencyStringMap, 0
+                    ),
                     feedUrl: f.feedUrl || f.FeedUrl || '',
-                    autoDelete: f.autoDelete !== undefined ? f.autoDelete : (f.AutoDelete !== undefined ? f.AutoDelete : 0),
+                    autoDelete: toNumericEnum(
+                        f.autoDelete !== undefined ? f.autoDelete : (f.AutoDelete !== undefined ? f.AutoDelete : 0),
+                        autoDeleteStringMap, 0
+                    ),
                     includeInAutoPlaylist: f.includeInAutoPlaylist !== undefined ? f.includeInAutoPlaylist : (f.IncludeInAutoPlaylist !== undefined ? f.IncludeInAutoPlaylist : false),
                     lastUpdateDate: f.lastUpdateDate || f.LastUpdateDate || null
                 };
             });
         }
+
+        // --- Helper: convert numeric enum back to string name for server ---
+        var frequencyNumberMap = { 0: 'Daily', 1: 'Weekly', 2: 'Monthly' };
+        var autoDeleteNumberMap = { 0: 'Never', 1: 'AfterTwoDays' };
 
         // --- Helper: convert JS feed object to server format (both cases) ---
         function feedToServer(feed) {
@@ -192,12 +217,12 @@
                 id: feed.id,
                 Name: feed.name,
                 name: feed.name,
-                Frequency: feed.frequency,
-                frequency: feed.frequency,
+                Frequency: frequencyNumberMap[feed.frequency] !== undefined ? frequencyNumberMap[feed.frequency] : feed.frequency,
+                frequency: frequencyNumberMap[feed.frequency] !== undefined ? frequencyNumberMap[feed.frequency] : feed.frequency,
                 FeedUrl: feed.feedUrl,
                 feedUrl: feed.feedUrl,
-                AutoDelete: feed.autoDelete,
-                autoDelete: feed.autoDelete,
+                AutoDelete: autoDeleteNumberMap[feed.autoDelete] !== undefined ? autoDeleteNumberMap[feed.autoDelete] : feed.autoDelete,
+                autoDelete: autoDeleteNumberMap[feed.autoDelete] !== undefined ? autoDeleteNumberMap[feed.autoDelete] : feed.autoDelete,
                 IncludeInAutoPlaylist: feed.includeInAutoPlaylist,
                 includeInAutoPlaylist: feed.includeInAutoPlaylist,
                 LastUpdateDate: feed.lastUpdateDate,
