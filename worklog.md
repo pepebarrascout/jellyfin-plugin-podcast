@@ -116,3 +116,25 @@ Stage Summary:
 - All ZIPs moved from root to Zip/ folder in repository
 - Release v0.0.1.6 recreated with correct DLL
 - Release URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/tag/v0.0.1.6
+---
+Task ID: 1
+Agent: Main Agent
+Task: v0.0.1.8 Alpha - Fix playlist XML fields and red Borrar escuchados button
+
+Work Log:
+- Read uploaded playlist.xml reference file to understand correct Jellyfin playlist format
+- Read all source files from ROOT directory (config.html, PodcastService.cs, PodcastsApiController.cs, PodcastsPlugin.cs, PodcastScheduler.cs, PodcastsPluginServiceRegistrator.cs, .csproj, manifest.json, meta.json)
+- Added red background CSS (.btn-danger class) to config.html for "Borrar escuchados" button
+- Updated PodcastService.cs to add IUserManager dependency for OwnerUserId
+- Modified GenerateAutoPlaylistAsync() to include: RunningTime (total seconds from library items), Genres (Podcast), OwnerUserId (first user GUID), Shares (empty element)
+- Updated PodcastsPluginServiceRegistrator.cs to inject IUserManager from MediaBrowser.Controller.Library
+- Bumped version to 0.0.1.8 in .csproj and meta.json (timestamp: 2026-04-23T10:00:00Z)
+- Added v0.0.1.8 to manifest.json with SHA256 checksum
+- Clean build from ROOT, verified DLL with strings and embedded resource check
+- Created ZIP, pushed to GitHub, created release v0.0.1.8 Alpha (NOT pre-release)
+
+Stage Summary:
+- Plugin DLL: /home/z/my-project/bin/Release/net9.0/Jellyfin.Plugin.Podcasts.dll
+- ZIP: /home/z/my-project/Zip/jellyfin-plugin-podcasts_0.0.1.8.zip (659346 bytes)
+- Release: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/tag/v0.0.1.8
+- Key fix: IUserManager is in MediaBrowser.Controller.Library namespace (not MediaBrowser.Controller.Entities)
