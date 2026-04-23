@@ -533,12 +533,15 @@
             var feed = currentConfig.feeds.find(function (f) { return f.id === id; });
             if (!feed) return;
             editingFeedId = id;
-            document.getElementById('podcastName').value = feed.name;
-            document.getElementById('podcastFrequency').value = String(feed.frequency);
-            document.getElementById('podcastFeedUrl').value = feed.feedUrl;
-            document.getElementById('podcastAutoDelete').value = String(feed.autoDelete);
-            document.getElementById('podcastAutoPlaylist').checked = feed.includeInAutoPlaylist;
             showForm('edit');
+            // Set values AFTER form is visible (emby-select needs display:block to reflect value)
+            setTimeout(function () {
+                document.getElementById('podcastName').value = feed.name;
+                document.getElementById('podcastFrequency').value = String(feed.frequency);
+                document.getElementById('podcastFeedUrl').value = feed.feedUrl;
+                document.getElementById('podcastAutoDelete').value = String(feed.autoDelete);
+                document.getElementById('podcastAutoPlaylist').checked = feed.includeInAutoPlaylist;
+            }, 50);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
