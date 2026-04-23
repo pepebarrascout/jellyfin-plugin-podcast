@@ -94,3 +94,25 @@ Stage Summary:
 - Both display (feed list) and editing (dropdown pre-population) will now work correctly
 - Saving preserves the string enum format for XML compatibility
 - v0.0.1.6 Alpha published successfully
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix v0.0.1.6 - config.html was not updated in root source + ZIPs not moved in repo
+
+Work Log:
+- Discovered the repo has TWO copies of source: root level (actual) and download/Jellyfin.Plugin.Podcasts/ (copy)
+- The fix was only applied to the copy in download/, not the root Configuration/config.html
+- The .csproj at root references Configuration\config.html (root), so the DLL embedded the old unfixed file
+- Applied toNumericEnum fix to root Configuration/config.html
+- Added exclusion in .csproj: <Compile Remove="download/**/*.cs" /> to avoid duplicate compilation errors
+- Moved all ZIPs to Zip/ folder in repository (git mv)
+- Committed, pushed, deleted old release v0.0.1.6, recreated with correct DLL
+- New checksum: 1A87F3D6192929272AAA90A6A32D3720
+
+Stage Summary:
+- Root Configuration/config.html now has toNumericEnum fix
+- manifest.json on GitHub updated with correct checksum
+- All ZIPs moved from root to Zip/ folder in repository
+- Release v0.0.1.6 recreated with correct DLL
+- Release URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/tag/v0.0.1.6
