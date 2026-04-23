@@ -44,11 +44,12 @@ public class PodcastsPluginServiceRegistrator : IPluginServiceRegistrator
             var httpClientFactory = sp.GetRequiredService<System.Net.Http.IHttpClientFactory>();
             var libraryManager = sp.GetRequiredService<MediaBrowser.Controller.Library.ILibraryManager>();
             var playlistManager = sp.GetRequiredService<MediaBrowser.Controller.Playlists.IPlaylistManager>();
+            var userManager = sp.GetRequiredService<MediaBrowser.Controller.Library.IUserManager>();
 
             // Plugin data is stored in a dedicated subfolder within the plugin config directory
             var pluginDataPath = Path.Combine(appPaths.DataPath, "plugins", "podcasts");
 
-            return new PodcastService(logger, httpClientFactory, libraryManager, playlistManager, pluginDataPath);
+            return new PodcastService(logger, httpClientFactory, libraryManager, playlistManager, userManager, pluginDataPath);
         });
 
         // Register PodcastScheduler as a hosted service (auto-starts with Jellyfin).

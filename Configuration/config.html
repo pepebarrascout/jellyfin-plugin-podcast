@@ -29,6 +29,16 @@
             cursor: default;
         }
 
+        /* === Danger button (red) === */
+        #podcastsConfigPage button[is="emby-button"].raised.btn-danger {
+            background: #c0392b;
+            color: #fff;
+            border: 1px solid #e74c3c;
+        }
+        #podcastsConfigPage button[is="emby-button"].raised.btn-danger:hover {
+            background: #e74c3c;
+        }
+
         /* === Feed list action buttons (smaller) === */
         .listItemActions button[is="emby-button"].raised {
             padding: 0.3em 0.7em;
@@ -404,7 +414,7 @@
 
             // Add bottom action button
             var bottomActions = document.getElementById('bottomActions');
-            bottomActions.innerHTML = '<button id="btnDeleteListened" type="button" is="emby-button" class="raised"><span>Borrar escuchados</span></button>';
+            bottomActions.innerHTML = '<button id="btnDeleteListened" type="button" is="emby-button" class="raised btn-danger"><span>Borrar escuchados</span></button>';
             document.getElementById('btnDeleteListened').addEventListener('click', function () {
                 deleteListened();
             });

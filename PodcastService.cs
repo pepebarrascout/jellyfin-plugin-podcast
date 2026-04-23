@@ -27,6 +27,7 @@ public class PodcastService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILibraryManager _libraryManager;
     private readonly IPlaylistManager _playlistManager;
+    private readonly IUserManager _userManager;
     private readonly string _pluginDataPath;
     private readonly string _episodeDataPath;
     private readonly object _dataLock = new();
@@ -50,12 +51,14 @@ public class PodcastService
         IHttpClientFactory httpClientFactory,
         ILibraryManager libraryManager,
         IPlaylistManager playlistManager,
+        IUserManager userManager,
         string pluginDataPath)
     {
         _logger = logger;
         _httpClientFactory = httpClientFactory;
         _libraryManager = libraryManager;
         _playlistManager = playlistManager;
+        _userManager = userManager;
         _pluginDataPath = pluginDataPath;
         _episodeDataPath = Path.Combine(pluginDataPath, "episode-data.xml");
 
@@ -495,15 +498,53 @@ public class PodcastService
 
         try
         {
+            // Calculate total runtime by looking up each episode in Jellyfin's library
+            long totalTicks = 0;
+            foreach (var episode in playlistEpisodes)
+            {
+                try
+                {
+                    var podcastName = GetPodcastNameForFeed(episode.FeedUrl);
+                    var fullPath = Path.Combine(basePath, podcastName, episode.LocalFileName);
+                    var item = _libraryManager.FindByPath(fullPath, false);
+                    if (item?.RunTimeTicks != null && item.RunTimeTicks > 0)
+                    {
+                        totalTicks += item.RunTimeTicks.Value;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug("Could not get runtime for episode {Title}: {Error}", episode.Title, ex.Message);
+                }
+            }
+            var totalSeconds = totalTicks / 10_000_000;
+
+            // Get owner user ID (first user, typically the admin)
+            var ownerUserId = string.Empty;
+            try
+            {
+                var firstUser = _userManager.Users.FirstOrDefault();
+                if (firstUser != null)
+                {
+                    ownerUserId = firstUser.Id.ToString("N");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug("Could not get owner user ID: {Error}", ex.Message);
+            }
+
             var doc = new XDocument(
                 new XDeclaration("1.0", "utf-8", "yes"),
                 new XElement("Item",
                     new XElement("Added", DateTime.Now.ToString("MM/dd/yyyy HH:mm:ss")),
                     new XElement("LockData", "false"),
                     new XElement("LocalTitle", "Podcast Auto Playlist"),
-                    new XElement("Overview",
-                        "Lista de reproducción automática generada diariamente con los episodios " +
-                        "no escuchados de los podcasts configurados."),
+                    new XElement("RunningTime", totalSeconds.ToString()),
+                    new XElement("Genres",
+                        new XElement("Genre", "Podcast")
+                    ),
+                    new XElement("OwnerUserId", ownerUserId),
                     new XElement("PlaylistItems",
                         playlistEpisodes.Select(episode =>
                         {
@@ -513,6 +554,7 @@ public class PodcastService
                                 new XElement("Path", fullPath));
                         })
                     ),
+                    new XElement("Shares"),
                     new XElement("PlaylistMediaType", "Audio")
                 )
             );
