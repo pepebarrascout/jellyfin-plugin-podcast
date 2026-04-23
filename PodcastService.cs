@@ -353,6 +353,66 @@ public class PodcastService
     }
 
     /// <summary>
+    /// Immediately deletes all listened podcast episode files (regardless of the 2-day window).
+    /// Returns a summary with the count of deleted episodes.
+    /// Called from the manual "Borrar escuchados" button in the config page.
+    /// </summary>
+    public async Task<(int deletedCount, string message)> DeleteListenedEpisodesAsync()
+    {
+        _logger.LogInformation("Starting manual delete of all listened episodes...");
+
+        var toDelete = new List<EpisodeRecord>();
+
+        lock (_dataLock)
+        {
+            LoadEpisodeData();
+            toDelete = _episodeRecords
+                .Where(e => e.IsListened && !e.IsDeleted)
+                .ToList();
+        }
+
+        var basePath = GetPodcastBasePath();
+        var deletedCount = 0;
+
+        foreach (var record in toDelete)
+        {
+            try
+            {
+                var podcastName = GetPodcastNameForFeed(record.FeedUrl);
+                var fullPath = Path.Combine(basePath, podcastName, record.LocalFileName);
+
+                if (File.Exists(fullPath))
+                {
+                    File.Delete(fullPath);
+                    deletedCount++;
+                    _logger.LogInformation("Deleted listened episode file: {FilePath}", fullPath);
+                }
+
+                record.IsDeleted = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete listened episode: {Title}", record.Title);
+            }
+        }
+
+        CleanupOldDeletedRecords();
+
+        lock (_dataLock)
+        {
+            SaveEpisodeData();
+        }
+
+        await Task.CompletedTask;
+        var message = deletedCount > 0
+            ? $"Se borraron {deletedCount} episodio(s) escuchado(s)."
+            : "No hay episodios escuchados para borrar.";
+
+        _logger.LogInformation("Manual delete complete. Deleted {Count} episodes", deletedCount);
+        return (deletedCount, message);
+    }
+
+    /// <summary>
     /// Returns the path to Jellyfin's default playlists folder.
     /// Uses IPlaylistManager.GetPlaylistsFolder() to resolve the correct path.
     /// Falls back to a "playlists" subfolder in the plugin data path if the manager is unavailable.
@@ -415,7 +475,19 @@ public class PodcastService
                 .ToList();
         }
 
+        // Filter out episodes whose files don't actually exist on disk
         var basePath = GetPodcastBasePath();
+        playlistEpisodes = playlistEpisodes.Where(ep =>
+        {
+            var podcastName = GetPodcastNameForFeed(ep.FeedUrl);
+            var fullPath = Path.Combine(basePath, podcastName, ep.LocalFileName);
+            return File.Exists(fullPath);
+        }).ToList();
+
+        if (playlistEpisodes.Count == 0)
+        {
+            _logger.LogWarning("No unlistened episodes with existing files found for auto-playlist");
+        }
         var playlistsPath = GetPlaylistsFolderPath();
         var playlistDir = Path.Combine(playlistsPath, "Podcast Auto Playlist");
         Directory.CreateDirectory(playlistDir);

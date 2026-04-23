@@ -133,6 +133,47 @@ public class PodcastsApiController : ControllerBase
     }
 
     /// <summary>
+    /// Triggers a manual generation of the auto-playlist.
+    /// Called from the "Generar playlist" button in the config page.
+    /// </summary>
+    [HttpPost("GeneratePlaylist")]
+    public async Task<ActionResult> GeneratePlaylist()
+    {
+        try
+        {
+            _logger.LogInformation("Manual playlist generation triggered");
+            await _podcastService.GenerateAutoPlaylistAsync();
+            return Ok(new { success = true, message = "Lista de reproduccion generada correctamente." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GeneratePlaylist endpoint");
+            return Ok(new { success = false, error = $"Error interno: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
+    /// Immediately deletes all listened podcast episode files.
+    /// Called from the "Borrar escuchados" button in the config page.
+    /// Unlike the scheduled auto-delete (which waits 2 days), this deletes immediately.
+    /// </summary>
+    [HttpPost("DeleteListened")]
+    public async Task<ActionResult> DeleteListened()
+    {
+        try
+        {
+            _logger.LogInformation("Manual delete-listened triggered");
+            var result = await _podcastService.DeleteListenedEpisodesAsync();
+            return Ok(new { success = true, message = $"Se borraron {result.deletedCount} episodio(s) escuchado(s)." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in DeleteListened endpoint");
+            return Ok(new { success = false, error = $"Error interno: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
     /// Validates an RSS feed URL server-side by downloading and parsing the feed.
     /// Checks that the URL returns valid XML with RSS structure and at least one audio episode.
     /// This avoids CORS issues since the request is made from the server, not the browser.

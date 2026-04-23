@@ -114,10 +114,10 @@
                 <div class="checkboxContainer checkboxContainer-withDescription">
                     <label>
                         <input type="checkbox" id="podcastAutoPlaylist" is="emby-checkbox" />
-                        <span>Incluir en lista de reproduccion automatica diaria</span>
+                        <span>Incluir en lista de reproducción automática diaria</span>
                     </label>
                     <div class="fieldDescription checkboxFieldDescription">
-                        Los episodios no escuchados de este podcast se agregaran a la lista de reproduccion automatica que se genera cada dia a las 01:00.
+                        Los episodios no escuchados de este podcast se agregarán a la lista de reproducción automática que se genera cada día a las 01:00.
                     </div>
                 </div>
 
@@ -135,6 +135,7 @@
             <div style="margin-bottom: 1.5em; display: flex; gap: 0.8em; flex-wrap: wrap;">
                 <button id="btnAddFeed" type="button" is="emby-button" class="raised button-submit"><span>Agregar Podcast</span></button>
                 <button id="btnUpdateAll" type="button" is="emby-button" class="raised"><span>Actualizar Todos</span></button>
+                <button id="btnGeneratePlaylist" type="button" is="emby-button" class="raised"><span>Generar playlist</span></button>
             </div>
 
             <!-- Update Progress -->
@@ -145,12 +146,15 @@
             <!-- Feeds List -->
             <div id="podcastsFeedsList"></div>
 
+            <!-- Bottom Actions -->
+            <div id="bottomActions" style="margin-top: 1.5em; display: flex; gap: 0.8em; flex-wrap: wrap;"></div>
+
             <div style="margin-top: 2em; color: #888; font-size: 0.85em;">
-                <h3 style="font-size: 1em; color: #aaa;">Programacion</h3>
+                <h3 style="font-size: 1em; color: #aaa;">Programación</h3>
                 <ul style="list-style: none; padding: 0; margin: 0;">
-                    <li>00:00 - Actualizacion de feeds RSS</li>
-                    <li>01:00 - Generacion de lista de reproduccion automatica</li>
-                    <li>02:00 - Procesamiento de auto-borrado</li>
+                    <li>00:30 - Actualización de feeds RSS</li>
+                    <li>01:00 - Generación de lista de reproducción automática</li>
+                    <li>01:30 - Procesamiento de auto-borrado</li>
                 </ul>
             </div>
         </div>
@@ -363,6 +367,7 @@
                     '<p style="margin:0;">No hay podcasts agregados.</p>' +
                     '<p style="margin:0.5em 0 0;">Haz clic en "Agregar Podcast" para comenzar.</p>' +
                     '</div>';
+            document.getElementById('bottomActions').innerHTML = '';
                 return;
             }
 
@@ -396,6 +401,13 @@
             });
             html += '</div>';
             container.innerHTML = html;
+
+            // Add bottom action button
+            var bottomActions = document.getElementById('bottomActions');
+            bottomActions.innerHTML = '<button id="btnDeleteListened" type="button" is="emby-button" class="raised"><span>Borrar escuchados</span></button>';
+            document.getElementById('btnDeleteListened').addEventListener('click', function () {
+                deleteListened();
+            });
         }
 
         // --- Show the add/edit form ---
@@ -688,6 +700,62 @@
         document.getElementById('btnUpdateAll').addEventListener('click', function () {
             updateAllFeeds();
         });
+
+        document.getElementById('btnGeneratePlaylist').addEventListener('click', function () {
+            generatePlaylist();
+        });
+
+        // --- Generate playlist manually ---
+        function generatePlaylist() {
+            showUpdateProgress('Generando playlist... Por favor espera.');
+            var btn = document.getElementById('btnGeneratePlaylist');
+            btn.disabled = true;
+
+            apiPost('Plugins/Podcasts/GeneratePlaylist', null)
+                .then(function (result) {
+                    btn.disabled = false;
+                    hideUpdateProgress();
+                    if (result.success) {
+                        Dashboard.alert({ title: 'Playlist generada', message: result.message });
+                    } else {
+                        Dashboard.alert({ title: 'Error', message: result.error || 'Error desconocido.' });
+                    }
+                })
+                .catch(function (error) {
+                    console.error('[Podcasts] GeneratePlaylist error:', error);
+                    btn.disabled = false;
+                    hideUpdateProgress();
+                    Dashboard.alert({ title: 'Error', message: 'No se pudo conectar al servidor para generar la playlist.' });
+                });
+        }
+
+        // --- Delete listened episodes manually ---
+        function deleteListened() {
+            if (!confirm('Deseas borrar todos los episodios que ya se escucharon? Esta accion no se puede deshacer.')) {
+                return;
+            }
+
+            showUpdateProgress('Borrando episodios escuchados...');
+            var btn = document.getElementById('btnDeleteListened');
+            btn.disabled = true;
+
+            apiPost('Plugins/Podcasts/DeleteListened', null)
+                .then(function (result) {
+                    btn.disabled = false;
+                    hideUpdateProgress();
+                    if (result.success) {
+                        Dashboard.alert({ title: 'Borrado completo', message: result.message });
+                    } else {
+                        Dashboard.alert({ title: 'Error', message: result.error || 'Error desconocido.' });
+                    }
+                })
+                .catch(function (error) {
+                    console.error('[Podcasts] DeleteListened error:', error);
+                    btn.disabled = false;
+                    hideUpdateProgress();
+                    Dashboard.alert({ title: 'Error', message: 'No se pudo conectar al servidor.' });
+                });
+        }
 
         // --- Load config when page is shown ---
         document.querySelector('#podcastsConfigPage').addEventListener('pageshow', function () {

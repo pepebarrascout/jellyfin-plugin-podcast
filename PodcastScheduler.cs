@@ -76,7 +76,7 @@ public class PodcastScheduler : IHostedService, IDisposable
             TimeSpan.FromSeconds(30), // Initial delay of 30 seconds
             TimeSpan.FromMinutes(1));
 
-        _logger.LogInformation("Podcast scheduler started. Feed updates at 00:00, playlist at 01:00, auto-delete at 02:00");
+        _logger.LogInformation("Podcast scheduler started. Feed updates at 00:30, playlist at 01:00, auto-delete at 01:30");
 
         return Task.CompletedTask;
     }
@@ -127,8 +127,8 @@ public class PodcastScheduler : IHostedService, IDisposable
                 _autoDeleteProcessedToday = false;
             }
 
-            // Feed updates at 00:00
-            if (now.Hour == 0 && now.Minute == 0 && !_feedsUpdatedToday)
+            // Feed updates at 00:30
+            if (now.Hour == 0 && now.Minute == 30 && !_feedsUpdatedToday)
             {
                 _feedsUpdatedToday = true;
                 _ = UpdateFeedsAsync();
@@ -141,8 +141,8 @@ public class PodcastScheduler : IHostedService, IDisposable
                 _ = GenerateAutoPlaylistAsync();
             }
 
-            // Auto-delete processing at 02:00
-            if (now.Hour == 2 && now.Minute == 0 && !_autoDeleteProcessedToday)
+            // Auto-delete processing at 01:30
+            if (now.Hour == 1 && now.Minute == 30 && !_autoDeleteProcessedToday)
             {
                 _autoDeleteProcessedToday = true;
                 _ = ProcessAutoDeleteAsync();
