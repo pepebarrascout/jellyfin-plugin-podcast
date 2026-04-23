@@ -1,5 +1,75 @@
 <div id="podcastsConfigPage" data-role="page" class="page type-interior pluginConfigurationPage">
 
+    <style>
+        /* === Native Jellyfin button styling fallback === */
+        #podcastsConfigPage button[is="emby-button"].raised {
+            background: #303030;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 0.6em 1.2em;
+            font-size: inherit;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+        #podcastsConfigPage button[is="emby-button"].raised:hover {
+            background: #404040;
+            border-color: #555;
+        }
+        #podcastsConfigPage button[is="emby-button"].raised.button-submit {
+            background: #00a4dc;
+            color: #fff;
+            border: 1px solid #00a4dc;
+        }
+        #podcastsConfigPage button[is="emby-button"].raised.button-submit:hover {
+            background: #1db5eb;
+        }
+        #podcastsConfigPage button[is="emby-button"].raised:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        /* === Feed list action buttons (smaller) === */
+        .listItemActions button[is="emby-button"].raised {
+            padding: 0.3em 0.7em;
+            font-size: 0.85em;
+        }
+
+        /* === Select dark background fix === */
+        #podcastsConfigPage .selectContainer select {
+            background: #101010 !important;
+            color: #ccc !important;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 0.5em 0.7em;
+            width: 100%;
+            font-size: inherit;
+        }
+        #podcastsConfigPage .selectContainer select option {
+            background: #1a1a1a;
+            color: #ccc;
+            padding: 0.4em 0.5em;
+        }
+
+        /* === Checkbox Jellyfin style === */
+        #podcastsConfigPage .checkboxContainer label {
+            display: flex;
+            align-items: center;
+            gap: 0.6em;
+            cursor: pointer;
+            padding: 0.4em 0;
+            color: inherit;
+        }
+        #podcastsConfigPage .checkboxContainer input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            accent-color: #00a4dc;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+    </style>
+
     <div data-role="content">
         <div class="content-primary">
 
@@ -35,8 +105,8 @@
                 <div class="selectContainer">
                     <label class="selectLabel" for="podcastAutoDelete">Auto-borrado</label>
                     <select id="podcastAutoDelete" class="emby-select" is="emby-select">
+                        <option value="1" selected>Dos dias despues de escucharlo</option>
                         <option value="0">Nunca</option>
-                        <option value="1">Dos dias despues de escucharlo</option>
                     </select>
                     <div class="fieldDescription">Solo se borra el episodio especifico que ya se escucho. Los demas episodios no se afectan.</div>
                 </div>
@@ -55,16 +125,16 @@
                 <div id="feedValidationResult" style="padding: 0.6em 0.8em; margin: 0.8em 0; border-radius: 4px; display: none;"></div>
 
                 <div style="margin-top: 1em; display: flex; gap: 0.8em; flex-wrap: wrap;">
-                    <button id="btnValidateFeed" type="button" is="emby-button" class="raised button-submit">Validar Feed</button>
-                    <button id="btnSaveFeed" type="button" is="emby-button" class="raised button-submit">Guardar</button>
-                    <button id="btnCancelForm" type="button" is="emby-button" class="raised">Cancelar</button>
+                    <button id="btnValidateFeed" type="button" is="emby-button" class="raised"><span>Validar Feed</span></button>
+                    <button id="btnSaveFeed" type="button" is="emby-button" class="raised button-submit"><span>Guardar</span></button>
+                    <button id="btnCancelForm" type="button" is="emby-button" class="raised"><span>Cancelar</span></button>
                 </div>
             </div>
 
             <!-- Action Buttons -->
             <div style="margin-bottom: 1.5em; display: flex; gap: 0.8em; flex-wrap: wrap;">
-                <button id="btnAddFeed" type="button" is="emby-button" class="raised button-submit">Agregar Podcast</button>
-                <button id="btnUpdateAll" type="button" is="emby-button" class="raised">Actualizar Todos</button>
+                <button id="btnAddFeed" type="button" is="emby-button" class="raised button-submit"><span>Agregar Podcast</span></button>
+                <button id="btnUpdateAll" type="button" is="emby-button" class="raised"><span>Actualizar Todos</span></button>
             </div>
 
             <!-- Update Progress -->
@@ -282,19 +352,19 @@
                 html += '<div class="listItemBodyText">';
                 html += '<h3 class="listItemBodyText primary">' + escapeHtml(feed.name) + '</h3>';
                 html += '<div class="listItemBodyText secondary">';
-                html += frequencyNames[feed.frequency] || 'Desconocido';
-                html += ' &bull; ' + (autoDeleteNames[feed.autoDelete] || 'Nunca');
+                html += 'Frecuencia: ' + (frequencyNames[feed.frequency] || 'Desconocido');
+                html += ' &bull; Borrado: ' + (autoDeleteNames[feed.autoDelete] || 'Nunca');
                 html += ' &bull; Auto-playlist: ' + (feed.includeInAutoPlaylist ? 'Si' : 'No');
                 html += ' &bull; Ultima act.: ' + lastUpdate;
                 html += '</div>';
                 html += '<div class="listItemBodyText secondary" style="color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(feed.feedUrl) + '</div>';
                 html += '</div>';
                 html += '</div>';
-                html += '<div class="listItemButton">';
+                html += '<div class="listItemButton listItemActions">';
 
-                html += '<button type="button" is="emby-button" class="raised button-submit" data-action="update" data-id="' + feed.id + '" data-name="' + escapeHtml(feed.name) + '">Actualizar</button>';
-                html += '<button type="button" is="emby-button" class="raised" data-action="edit" data-id="' + feed.id + '">Editar</button>';
-                html += '<button type="button" is="emby-button" class="raised" data-action="delete" data-id="' + feed.id + '" data-name="' + escapeHtml(feed.name) + '">Borrar</button>';
+                html += '<button type="button" is="emby-button" class="raised button-submit" data-action="update" data-id="' + feed.id + '" data-name="' + escapeHtml(feed.name) + '"><span>Actualizar</span></button>';
+                html += '<button type="button" is="emby-button" class="raised" data-action="edit" data-id="' + feed.id + '"><span>Editar</span></button>';
+                html += '<button type="button" is="emby-button" class="raised" data-action="delete" data-id="' + feed.id + '" data-name="' + escapeHtml(feed.name) + '"><span>Borrar</span></button>';
 
                 html += '</div>';
                 html += '</div>';
@@ -311,10 +381,10 @@
 
             if (mode === 'edit') {
                 title.textContent = 'Editar Podcast';
-                document.getElementById('btnSaveFeed').textContent = 'Actualizar';
+                document.getElementById('btnSaveFeed').querySelector('span').textContent = 'Actualizar';
             } else {
                 title.textContent = 'Agregar Podcast';
-                document.getElementById('btnSaveFeed').textContent = 'Guardar';
+                document.getElementById('btnSaveFeed').querySelector('span').textContent = 'Guardar';
                 clearForm();
             }
 
@@ -333,7 +403,7 @@
             document.getElementById('podcastName').value = '';
             document.getElementById('podcastFrequency').value = '0';
             document.getElementById('podcastFeedUrl').value = '';
-            document.getElementById('podcastAutoDelete').value = '0';
+            document.getElementById('podcastAutoDelete').value = '1';
             document.getElementById('podcastAutoPlaylist').checked = false;
             isFormValidated = false;
             hideValidationResult();
@@ -379,12 +449,12 @@
             hideValidationResult();
             var validateBtn = document.getElementById('btnValidateFeed');
             validateBtn.disabled = true;
-            validateBtn.textContent = 'Validando...';
+            validateBtn.querySelector('span').textContent = 'Validando...';
 
             apiPost('Plugins/Podcasts/ValidateFeed', { url: url })
                 .then(function (result) {
                     validateBtn.disabled = false;
-                    validateBtn.textContent = 'Validar Feed';
+                    validateBtn.querySelector('span').textContent = 'Validar Feed';
                     if (result.success) {
                         isFormValidated = true;
                         showValidationResult(true, result.message);
@@ -396,7 +466,7 @@
                 .catch(function (error) {
                     console.error('[Podcasts] Validate feed error:', error);
                     validateBtn.disabled = false;
-                    validateBtn.textContent = 'Validar Feed';
+                    validateBtn.querySelector('span').textContent = 'Validar Feed';
                     isFormValidated = false;
                     showValidationResult(false, 'No se pudo conectar al servidor para validar el feed.');
                 });

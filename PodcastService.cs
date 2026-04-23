@@ -124,8 +124,8 @@ public class PodcastService
             // Download cover image
             await DownloadCoverImageAsync(client, doc, podcastFolder);
 
-            // Parse episodes from the RSS feed
-            var items = doc.Descendants("item").ToList();
+            // Parse episodes from the RSS feed (only latest 10)
+            var items = doc.Descendants("item").Take(10).ToList();
             if (items.Count == 0)
             {
                 _logger.LogWarning("No items found in RSS feed: {FeedUrl}", feed.FeedUrl);
