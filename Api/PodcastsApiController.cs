@@ -12,9 +12,13 @@ namespace Jellyfin.Plugin.Podcasts.Api;
 /// <summary>
 /// API controller for the Podcasts plugin.
 /// Provides endpoints called from the dashboard configuration page for manual operations:
-/// - UpdateAll: Triggers a manual update of all podcast feeds.
+/// - UpdateAll: Starts a background update of all feeds (returns immediately).
 /// - UpdateFeed: Triggers a manual update of a specific feed by name.
-/// These endpoints allow users to update feeds immediately without waiting for the scheduled time.
+/// - GeneratePlaylist: Triggers manual playlist generation.
+/// - DeleteListened: Deletes all listened episodes immediately.
+/// - ExportOpml: Generates and returns an OPML file with all configured feeds.
+/// - ImportOpml: Imports podcast feeds from an OPML file.
+/// - ValidateFeed: Server-side RSS feed URL validation.
 /// </summary>
 [ApiController]
 [Route("Plugins/Podcasts")]
@@ -38,12 +42,13 @@ public class PodcastsApiController : ControllerBase
     }
 
     /// <summary>
-    /// Triggers a manual update of all configured podcast feeds.
+    /// Starts a background update of all configured podcast feeds.
+    /// Returns immediately with a success message - the update runs in the background.
+    /// This prevents HTTP timeouts when updating many feeds with large episodes.
     /// Called from the "Actualizar Todos" button in the config page.
-    /// Each feed is updated sequentially, downloading any new episodes available.
     /// </summary>
     [HttpPost("UpdateAll")]
-    public async Task<ActionResult> UpdateAll()
+    public ActionResult UpdateAll()
     {
         try
         {
@@ -53,38 +58,26 @@ public class PodcastsApiController : ControllerBase
                 return Ok(new { success = false, error = "No hay podcasts configurados." });
             }
 
-            _logger.LogInformation("Manual update triggered for all {Count} feeds", config.Feeds.Count);
-            var updatedCount = 0;
-            var errors = 0;
+            _logger.LogInformation("Manual update triggered for all {Count} feeds (background)", config.Feeds.Count);
 
-            foreach (var feed in config.Feeds.ToList())
+            // Run the update in a fire-and-forget background task
+            _ = Task.Run(async () =>
             {
                 try
                 {
-                    await _podcastService.UpdateFeedAsync(feed);
-                    updatedCount++;
+                    await _podcastService.UpdateAllFeedsAsync();
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error manually updating feed {Name}", feed.Name);
-                    errors++;
+                    _logger.LogError(ex, "Background update failed");
                 }
-            }
+            });
 
-            // Save updated config (with new LastUpdateDate values)
-            PodcastsPlugin.Instance?.SaveConfiguration();
-
-            var message = $"Se actualizaron {updatedCount} podcast(s).";
-            if (errors > 0)
-            {
-                message += $" {errors} error(es).";
-            }
-
-            return Ok(new { success = true, message = message });
+            return Ok(new { success = true, message = $"Actualizacion de {config.Feeds.Count} podcast(s) iniciada en segundo plano. Los episodios se descargaran progresivamente." });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in UpdateAll endpoint");
+            _logger.LogError(ex, "Error starting UpdateAll");
             return Ok(new { success = false, error = $"Error interno: {ex.Message}" });
         }
     }
@@ -108,7 +101,7 @@ public class PodcastsApiController : ControllerBase
             var config = PodcastsPlugin.Instance?.Configuration;
             if (config == null)
             {
-                return Ok(new { success = false, error = "Configuración del plugin no disponible." });
+                return Ok(new { success = false, error = "Configuracion del plugin no disponible." });
             }
 
             var feed = config.Feeds.FirstOrDefault(f =>
@@ -116,7 +109,7 @@ public class PodcastsApiController : ControllerBase
 
             if (feed == null)
             {
-                return Ok(new { success = false, error = $"No se encontró el podcast \"{name}\"." });
+                return Ok(new { success = false, error = $"No se encontro el podcast \"{name}\"." });
             }
 
             _logger.LogInformation("Manual update triggered for feed: {Name}", feed.Name);
@@ -158,18 +151,86 @@ public class PodcastsApiController : ControllerBase
     /// Unlike the scheduled auto-delete (which waits 2 days), this deletes immediately.
     /// </summary>
     [HttpPost("DeleteListened")]
-    public async Task<ActionResult> DeleteListened()
+    public ActionResult DeleteListened()
     {
         try
         {
             _logger.LogInformation("Manual delete-listened triggered");
-            var result = await _podcastService.DeleteListenedEpisodesAsync();
-            return Ok(new { success = true, message = $"Se borraron {result.deletedCount} episodio(s) escuchado(s)." });
+            var (deletedCount, message) = _podcastService.DeleteListenedEpisodes();
+            return Ok(new { success = true, message = message });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in DeleteListened endpoint");
             return Ok(new { success = false, error = $"Error interno: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
+    /// Exports all configured podcast feeds as an OPML file.
+    /// The OPML file can be used to import subscriptions into other podcast apps
+    /// or to back up the current configuration.
+    /// Called from the "Exportar OPML" button in the config page.
+    /// </summary>
+    [HttpGet("ExportOpml")]
+    public ActionResult ExportOpml()
+    {
+        try
+        {
+            _logger.LogInformation("OPML export triggered");
+            var opmlContent = _podcastService.GenerateOpml();
+            var bytes = System.Text.Encoding.UTF8.GetBytes(opmlContent);
+            return File(bytes, "application/xml", "podcasts.opml");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in ExportOpml endpoint");
+            return Ok(new { success = false, error = $"Error interno: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
+    /// Imports podcast feeds from an OPML file.
+    /// Feeds that already exist (by URL) are skipped.
+    /// New feeds are added with default settings (Daily frequency, AfterTwoDays auto-delete).
+    /// Called from the "Importar OPML" button in the config page.
+    /// </summary>
+    [HttpPost("ImportOpml")]
+    public async Task<ActionResult> ImportOpml()
+    {
+        try
+        {
+            var file = Request.Form.Files.FirstOrDefault();
+            if (file == null || file.Length == 0)
+            {
+                return Ok(new { success = false, error = "No se selecciono ningun archivo OPML." });
+            }
+
+            if (!file.FileName.EndsWith(".opml", StringComparison.OrdinalIgnoreCase) &&
+                !file.FileName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+            {
+                return Ok(new { success = false, error = "El archivo debe ser un archivo OPML (.opml o .xml)." });
+            }
+
+            using var reader = new StreamReader(file.OpenReadStream());
+            var opmlContent = await reader.ReadToEndAsync();
+
+            _logger.LogInformation("OPML import triggered, file size: {Size} bytes", file.Length);
+            var importedCount = _podcastService.ImportFromOpml(opmlContent);
+
+            if (importedCount > 0)
+            {
+                return Ok(new { success = true, message = $"Se importaron {importedCount} podcast(s) correctamente." });
+            }
+            else
+            {
+                return Ok(new { success = false, error = "No se encontraron nuevos podcasts en el archivo OPML (ya existen todos)." });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in ImportOpml endpoint");
+            return Ok(new { success = false, error = $"Error al importar: {ex.Message}" });
         }
     }
 
@@ -195,7 +256,7 @@ public class PodcastsApiController : ControllerBase
                 string.Equals(f.FeedUrl.TrimEnd('/'), url.TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
             if (isDuplicate)
             {
-                return Ok(new { success = false, error = "Este feed RSS ya está registrado." });
+                return Ok(new { success = false, error = "Este feed RSS ya esta registrado." });
             }
         }
 
@@ -211,7 +272,7 @@ public class PodcastsApiController : ControllerBase
             var rssElement = doc.Root;
             if (rssElement == null || rssElement.Name.LocalName != "rss")
             {
-                return Ok(new { success = false, error = "La URL no contiene un feed RSS válido." });
+                return Ok(new { success = false, error = "La URL no contiene un feed RSS valido." });
             }
 
             var channel = rssElement.Element("channel");
@@ -245,7 +306,7 @@ public class PodcastsApiController : ControllerBase
 
             if (!hasAudio)
             {
-                return Ok(new { success = false, error = "El feed RSS no contiene episodios de audio válidos." });
+                return Ok(new { success = false, error = "El feed RSS no contiene episodios de audio validos." });
             }
 
             _logger.LogInformation("Feed RSS validado exitosamente: {Url} con {Count} episodios", url, items.Count);

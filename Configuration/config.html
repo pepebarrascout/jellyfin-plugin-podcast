@@ -124,10 +124,10 @@
                 <div class="checkboxContainer checkboxContainer-withDescription">
                     <label>
                         <input type="checkbox" id="podcastAutoPlaylist" is="emby-checkbox" />
-                        <span>Incluir en lista de reproducción automática diaria</span>
+                        <span>Incluir en lista de reproduccion automatica diaria</span>
                     </label>
                     <div class="fieldDescription checkboxFieldDescription">
-                        Los episodios no escuchados de este podcast se agregarán a la lista de reproducción automática que se genera cada día a las 01:00.
+                        Los episodios no escuchados de este podcast se agregaran a la lista de reproduccion automatica que se genera cada dia a las 01:00.
                     </div>
                 </div>
 
@@ -156,18 +156,25 @@
             <!-- Feeds List -->
             <div id="podcastsFeedsList"></div>
 
-            <!-- Bottom Actions -->
+            <!-- Bottom Actions (Borrar escuchados) -->
             <div id="bottomActions" style="margin-top: 1.5em; display: flex; gap: 0.8em; flex-wrap: wrap;">
-                <button id="btnDeleteListened" type="button" is="emby-button" class="raised btn-danger" data-action="delete-listened"><span>Borrar escuchados</span></button>
+                <button id="btnDeleteListened" type="button" is="emby-button" class="raised btn-danger"><span>Borrar escuchados</span></button>
             </div>
 
             <div style="margin-top: 2em; color: #888; font-size: 0.85em;">
-                <h3 style="font-size: 1em; color: #aaa;">Programación</h3>
+                <h3 style="font-size: 1em; color: #aaa;">Programacion</h3>
                 <ul style="list-style: none; padding: 0; margin: 0;">
-                    <li>00:30 - Actualización de feeds RSS</li>
-                    <li>01:00 - Generación de lista de reproducción automática</li>
+                    <li>00:30 - Actualizacion de feeds RSS</li>
+                    <li>01:00 - Generacion de lista de reproduccion automatica</li>
                     <li>01:30 - Procesamiento de auto-borrado</li>
                 </ul>
+            </div>
+
+            <!-- OPML Import/Export (below schedule section) -->
+            <div style="margin-top: 1.5em; display: flex; gap: 0.8em; flex-wrap: wrap;">
+                <button id="btnExportOpml" type="button" is="emby-button" class="raised"><span>Exportar OPML</span></button>
+                <button id="btnImportOpml" type="button" is="emby-button" class="raised"><span>Importar OPML</span></button>
+                <input type="file" id="opmlFileInput" accept=".opml,.xml" style="display: none;" />
             </div>
         </div>
     </div>
@@ -285,7 +292,7 @@
             return serverCfg;
         }
 
-        // --- Helper: call plugin API endpoint ---
+        // --- Helper: call plugin API endpoint (POST) ---
         function apiPost(path, params) {
             var url = ApiClient.getUrl(path);
             if (params) {
@@ -379,7 +386,7 @@
                     '<p style="margin:0;">No hay podcasts agregados.</p>' +
                     '<p style="margin:0.5em 0 0;">Haz clic en "Agregar Podcast" para comenzar.</p>' +
                     '</div>';
-            document.getElementById('bottomActions').style.display = 'none';
+                document.getElementById('bottomActions').style.display = 'none';
                 return;
             }
 
@@ -415,8 +422,7 @@
             container.innerHTML = html;
 
             // Show/hide bottom action buttons based on whether feeds exist
-            var bottomActions = document.getElementById('bottomActions');
-            bottomActions.style.display = 'flex';
+            document.getElementById('bottomActions').style.display = 'flex';
         }
 
         // --- Show the add/edit form ---
@@ -580,7 +586,6 @@
             if (!feed) return;
             editingFeedId = id;
             showForm('edit');
-            // Set values AFTER form is visible (emby-select needs display:block to reflect value)
             setTimeout(function () {
                 document.getElementById('podcastName').value = feed.name;
                 document.getElementById('podcastFrequency').value = String(feed.frequency);
@@ -618,26 +623,29 @@
             document.getElementById('updateProgress').style.display = 'none';
         }
 
-        // --- Update all feeds ---
+        // --- Update all feeds (background, returns immediately) ---
         function updateAllFeeds() {
             if (!currentConfig || !currentConfig.feeds || currentConfig.feeds.length === 0) {
                 Dashboard.alert({ title: 'Sin podcasts', message: 'No hay podcasts configurados para actualizar.' });
                 return;
             }
-            if (!confirm('Deseas actualizar todos los podcasts ahora? Esto puede tomar varios minutos.')) {
+            if (!confirm('Deseas actualizar todos los podcasts ahora? La actualizacion se ejecutara en segundo plano y puede tomar varios minutos.')) {
                 return;
             }
 
-            showUpdateProgress('Actualizando todos los podcasts... Por favor espera.');
             var btn = document.getElementById('btnUpdateAll');
             btn.disabled = true;
 
             apiPost('Plugins/Podcasts/UpdateAll', null)
                 .then(function (result) {
                     btn.disabled = false;
-                    hideUpdateProgress();
                     if (result.success) {
-                        Dashboard.alert({ title: 'Actualizacion completa', message: result.message });
+                        showUpdateProgress(result.message);
+                        // Auto-hide progress after 10 seconds
+                        setTimeout(function () {
+                            hideUpdateProgress();
+                        }, 10000);
+                        Dashboard.alert({ title: 'Actualizacion iniciada', message: result.message });
                     } else {
                         Dashboard.alert({ title: 'Error', message: result.error || 'Error desconocido.' });
                     }
@@ -646,7 +654,6 @@
                 .catch(function (error) {
                     console.error('[Podcasts] UpdateAll error:', error);
                     btn.disabled = false;
-                    hideUpdateProgress();
                     Dashboard.alert({ title: 'Error', message: 'No se pudo conectar al servidor para actualizar.' });
                 });
         }
@@ -676,7 +683,7 @@
                 });
         }
 
-        // --- Event delegation for table action buttons ---
+        // --- Event delegation for feed list action buttons ---
         document.getElementById('podcastsFeedsList').addEventListener('click', function (e) {
             var btn = e.target.closest('button[data-action]');
             if (!btn) return;
@@ -686,14 +693,6 @@
             if (action === 'update') updateSingleFeed(name);
             else if (action === 'edit') editFeed(id);
             else if (action === 'delete') deleteFeed(id);
-        });
-
-        // --- Event delegation for bottom action buttons ---
-        document.getElementById('bottomActions').addEventListener('click', function (e) {
-            var btn = e.target.closest('button[data-action]');
-            if (!btn) return;
-            var action = btn.getAttribute('data-action');
-            if (action === 'delete-listened') deleteListened();
         });
 
         // --- Static button event bindings ---
@@ -720,6 +719,78 @@
 
         document.getElementById('btnGeneratePlaylist').addEventListener('click', function () {
             generatePlaylist();
+        });
+
+        // --- Borrar escuchados - direct event listener ---
+        document.getElementById('btnDeleteListened').addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            deleteListened();
+        });
+
+        // --- OPML Export - direct download ---
+        document.getElementById('btnExportOpml').addEventListener('click', function () {
+            var url = ApiClient.getUrl('Plugins/Podcasts/ExportOpml');
+            url += (url.indexOf('?') >= 0 ? '&' : '?') + 'api_key=' + ApiClient.accessToken();
+            window.open(url, '_blank');
+        });
+
+        // --- OPML Import - file picker ---
+        document.getElementById('btnImportOpml').addEventListener('click', function () {
+            document.getElementById('opmlFileInput').click();
+        });
+
+        document.getElementById('opmlFileInput').addEventListener('change', function () {
+            var fileInput = this;
+            if (!fileInput.files || fileInput.files.length === 0) return;
+
+            var file = fileInput.files[0];
+            if (!file.name.endsWith('.opml') && !file.name.endsWith('.xml')) {
+                Dashboard.alert({ title: 'Error', message: 'Selecciona un archivo OPML (.opml o .xml).' });
+                fileInput.value = '';
+                return;
+            }
+
+            if (!confirm('Importar podcasts desde "' + file.name + '"? Los feeds que ya existan se omitiran.')) {
+                fileInput.value = '';
+                return;
+            }
+
+            showUpdateProgress('Importando OPML...');
+            var btn = document.getElementById('btnImportOpml');
+            btn.disabled = true;
+
+            var formData = new FormData();
+            formData.append('opmlFile', file);
+
+            var url = ApiClient.getUrl('Plugins/Podcasts/ImportOpml');
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-Emby-Token': ApiClient.accessToken() },
+                body: formData
+            })
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(function (result) {
+                btn.disabled = false;
+                hideUpdateProgress();
+                fileInput.value = '';
+                if (result.success) {
+                    Dashboard.alert({ title: 'Importacion completa', message: result.message });
+                    loadConfig();
+                } else {
+                    Dashboard.alert({ title: 'Error', message: result.error || 'Error desconocido.' });
+                }
+            })
+            .catch(function (error) {
+                console.error('[Podcasts] ImportOpml error:', error);
+                btn.disabled = false;
+                hideUpdateProgress();
+                fileInput.value = '';
+                Dashboard.alert({ title: 'Error', message: 'No se pudo conectar al servidor para importar.' });
+            });
         });
 
         // --- Generate playlist manually ---

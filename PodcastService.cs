@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Jellyfin.Plugin.Podcasts.Configuration;
@@ -19,7 +20,7 @@ namespace Jellyfin.Plugin.Podcasts;
 /// <summary>
 /// Core service responsible for all podcast management operations:
 /// RSS feed parsing, episode downloading, cover image extraction,
-/// auto-delete processing, and auto-playlist generation.
+/// auto-delete processing, auto-playlist generation, and OPML import/export.
 /// This service is injected into the scheduler and API controller.
 /// All episode tracking data is persisted as XML in the plugin data folder.
 /// </summary>
@@ -44,6 +45,13 @@ public class PodcastService
     /// Content namespace used in some RSS feeds (Media RSS).
     /// </summary>
     private static readonly XNamespace ContentNs = "http://purl.org/rss/1.0/modules/content/";
+
+    /// <summary>
+    /// Maximum number of episode records to keep per feed in episode-data.xml.
+    /// Since we only process the latest 10 items from each RSS feed,
+    /// there is no reason to keep more than 10 records per feed.
+    /// </summary>
+    private const int MaxEpisodesPerFeed = 10;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PodcastService"/> class.
@@ -112,6 +120,7 @@ public class PodcastService
     /// Updates a podcast feed by downloading its RSS XML, checking for new episodes,
     /// downloading any missing episodes, and saving the cover image as folder.jpg.
     /// Only episodes not already tracked in the episode records are downloaded.
+    /// After updating, trims old episode records to keep only the latest 10 per feed.
     /// </summary>
     public async Task UpdateFeedAsync(PodcastFeed feed)
     {
@@ -128,7 +137,7 @@ public class PodcastService
             var response = await client.GetStringAsync(feed.FeedUrl);
             var doc = XDocument.Parse(response);
 
-            // Download cover image
+            // Download cover image (podcast-specific or generic fallback)
             await DownloadCoverImageAsync(client, doc, podcastFolder);
 
             // Parse episodes from the RSS feed (only latest 10)
@@ -219,7 +228,7 @@ public class PodcastService
                     await DownloadFileAsync(client2, record.EpisodeUrl, filePath);
                     _logger.LogInformation("Downloaded episode: {Title}", record.Title);
 
-                    // Write ID3 metadata to the downloaded audio file
+                    // Write clean ID3 metadata to the downloaded audio file
                     await WriteAudioMetadataAsync(filePath, record.Title, feed.Name, record.PublishedDate);
                     await Task.Delay(2000);
                 }
@@ -229,10 +238,11 @@ public class PodcastService
                 }
             }
 
-            // Save updated records
+            // Save updated records and trim old ones
             lock (_dataLock)
             {
                 _episodeRecords.AddRange(newRecords);
+                TrimEpisodeRecords(feed.FeedUrl);
                 SaveEpisodeData();
             }
 
@@ -251,6 +261,34 @@ public class PodcastService
         {
             _logger.LogError(ex, "Error updating feed {FeedName}", feed.Name);
         }
+    }
+
+    /// <summary>
+    /// Updates all configured feeds sequentially.
+    /// Designed to be called from a background task (fire-and-forget).
+    /// Does NOT return results to the caller - use logging to track progress.
+    /// </summary>
+    public async Task UpdateAllFeedsAsync()
+    {
+        var config = PodcastsPlugin.Instance?.Configuration;
+        if (config == null || config.Feeds.Count == 0) return;
+
+        _logger.LogInformation("Background update started for {Count} feeds", config.Feeds.Count);
+
+        foreach (var feed in config.Feeds.ToList())
+        {
+            try
+            {
+                await UpdateFeedAsync(feed);
+                PodcastsPlugin.Instance?.SaveConfiguration();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Background update error for feed {Name}", feed.Name);
+            }
+        }
+
+        _logger.LogInformation("Background update completed for all feeds");
     }
 
     /// <summary>
@@ -368,7 +406,7 @@ public class PodcastService
     /// Returns a summary with the count of deleted episodes.
     /// Called from the manual "Borrar escuchados" button in the config page.
     /// </summary>
-    public async Task<(int deletedCount, string message)> DeleteListenedEpisodesAsync()
+    public (int deletedCount, string message) DeleteListenedEpisodes()
     {
         _logger.LogInformation("Starting manual delete of all listened episodes...");
 
@@ -382,6 +420,8 @@ public class PodcastService
                 .ToList();
         }
 
+        _logger.LogInformation("Found {Count} listened episodes to delete", toDelete.Count);
+
         var basePath = GetPodcastBasePath();
         var deletedCount = 0;
 
@@ -391,6 +431,8 @@ public class PodcastService
             {
                 var podcastName = GetPodcastNameForFeed(record.FeedUrl);
                 var fullPath = Path.Combine(basePath, podcastName, record.LocalFileName);
+
+                _logger.LogInformation("Processing delete for: {Path} (exists: {Exists})", fullPath, File.Exists(fullPath));
 
                 if (File.Exists(fullPath))
                 {
@@ -414,7 +456,6 @@ public class PodcastService
             SaveEpisodeData();
         }
 
-        await Task.CompletedTask;
         var message = deletedCount > 0
             ? $"Se borraron {deletedCount} episodio(s) escuchado(s)."
             : "No hay episodios escuchados para borrar.";
@@ -424,40 +465,129 @@ public class PodcastService
     }
 
     /// <summary>
-    /// Returns the path to Jellyfin's default playlists folder.
-    /// Uses IPlaylistManager.GetPlaylistsFolder() to resolve the correct path.
-    /// Falls back to a "playlists" subfolder in the plugin data path if the manager is unavailable.
+    /// Generates an OPML document containing all configured podcast feeds.
+    /// OPML is a standard XML format for exchanging podcast subscriptions.
     /// </summary>
-    public string GetPlaylistsFolderPath()
+    public string GenerateOpml()
     {
-        try
-        {
-            var folder = _playlistManager.GetPlaylistsFolder();
-            if (folder != null && !string.IsNullOrEmpty(folder.Path))
-            {
-                Directory.CreateDirectory(folder.Path);
-                return folder.Path;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not get playlists folder from PlaylistManager, using fallback");
-        }
+        var config = PodcastsPlugin.Instance?.Configuration;
+        var feeds = config?.Feeds ?? new List<PodcastFeed>();
 
-        return Path.Combine(_pluginDataPath, "playlists");
+        var doc = new XDocument(
+            new XDeclaration("1.0", "UTF-8", null),
+            new XElement("opml",
+                new XAttribute("version", "1.0"),
+                new XElement("head",
+                    new XElement("title", "Podcasts"),
+                    new XElement("dateCreated", DateTime.Now.ToString("R"))
+                ),
+                new XElement("body",
+                    feeds.Select(f => new XElement("outline",
+                        new XAttribute("type", "rss"),
+                        new XAttribute("text", f.Name),
+                        new XAttribute("xmlUrl", f.FeedUrl)
+                    ))
+                )
+            )
+        );
+
+        return doc.ToString();
     }
 
     /// <summary>
-    /// Generates a daily auto-playlist containing all unlistened episodes from
+    /// Imports podcast feeds from an OPML document string.
+    /// Returns the count of successfully imported feeds.
+    /// Feeds that already exist (by URL) are skipped.
+    /// </summary>
+    public int ImportFromOpml(string opmlContent)
+    {
+        var config = PodcastsPlugin.Instance?.Configuration;
+        if (config == null) return 0;
+
+        try
+        {
+            var doc = XDocument.Parse(opmlContent);
+            var outlines = doc.Descendants("outline")
+                .Where(o => string.Equals(o.Attribute("type")?.Value, "rss", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (outlines.Count == 0)
+            {
+                _logger.LogWarning("No RSS outlines found in OPML document");
+                return 0;
+            }
+
+            var existingUrls = config.Feeds
+                .Select(f => f.FeedUrl.TrimEnd('/').ToLowerInvariant())
+                .ToHashSet();
+
+            var importedCount = 0;
+
+            foreach (var outline in outlines)
+            {
+                var xmlUrl = outline.Attribute("xmlUrl")?.Value?.Trim();
+                var text = outline.Attribute("text")?.Value?.Trim() ??
+                           outline.Element("text")?.Value?.Trim() ?? "Unknown Podcast";
+
+                if (string.IsNullOrWhiteSpace(xmlUrl)) continue;
+
+                var normalizedUrl = xmlUrl.TrimEnd('/').ToLowerInvariant();
+                if (existingUrls.Contains(normalizedUrl))
+                {
+                    _logger.LogDebug("Skipping duplicate feed: {Url}", xmlUrl);
+                    continue;
+                }
+
+                // Check for duplicate name
+                var name = text;
+                var baseName = name;
+                var suffix = 1;
+                while (config.Feeds.Any(f =>
+                    string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    name = $"{baseName} ({suffix++})";
+                }
+
+                config.Feeds.Add(new PodcastFeed
+                {
+                    Id = Guid.NewGuid(),
+                    Name = name,
+                    FeedUrl = xmlUrl,
+                    Frequency = UpdateFrequency.Daily,
+                    AutoDelete = AutoDeleteOption.AfterTwoDays,
+                    IncludeInAutoPlaylist = false,
+                    LastUpdateDate = null
+                });
+
+                existingUrls.Add(normalizedUrl);
+                importedCount++;
+                _logger.LogInformation("Imported podcast from OPML: {Name} ({Url})", name, xmlUrl);
+            }
+
+            if (importedCount > 0)
+            {
+                PodcastsPlugin.Instance?.SaveConfiguration();
+            }
+
+            return importedCount;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error importing OPML document");
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// Generates a playlist containing all unlistened episodes from
     /// podcast feeds configured with IncludeInAutoPlaylist = true.
     /// Episodes are ordered chronologically by their publication date (oldest first).
-    /// Uses IPlaylistManager to create a proper database-backed playlist in Jellyfin,
-    /// which ensures items are properly resolved and playable through the library.
+    /// Uses IPlaylistManager to create a proper database-backed playlist in Jellyfin.
     /// If a playlist named "Podcast Auto Playlist" already exists, it is deleted and recreated.
     /// </summary>
     public async Task GenerateAutoPlaylistAsync()
     {
-        _logger.LogInformation("Generating daily auto-playlist...");
+        _logger.LogInformation("Generating auto-playlist...");
 
         var config = PodcastsPlugin.Instance?.Configuration;
         if (config == null) return;
@@ -524,12 +654,6 @@ public class PodcastService
             }
         }
 
-        if (itemIds.Count == 0)
-        {
-            _logger.LogWarning("No unlistened episodes found in Jellyfin library for auto-playlist (skipped {Skipped} unresolved)", skippedCount);
-            return;
-        }
-
         // Get owner user (first user, typically the admin)
         var user = _userManager.Users.FirstOrDefault();
         if (user == null)
@@ -540,23 +664,13 @@ public class PodcastService
 
         try
         {
-            // Check if playlist already exists for this user
-            var existingPlaylists = _playlistManager.GetPlaylists(user.Id);
-            var existingPlaylist = existingPlaylists
-                .FirstOrDefault(p => string.Equals(p.Name, "Podcast Auto Playlist", StringComparison.OrdinalIgnoreCase));
+            // Always delete existing playlist first to ensure a clean overwrite
+            await DeleteExistingPlaylistIfExists(user.Id);
 
-            if (existingPlaylist != null)
+            if (itemIds.Count == 0)
             {
-                // Delete the existing playlist so we can recreate it with fresh items
-                _logger.LogInformation("Existing 'Podcast Auto Playlist' found (ID: {Id}), deleting for recreation", existingPlaylist.Id);
-                try
-                {
-                    await _playlistManager.RemovePlaylistsAsync(existingPlaylist.Id);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Could not delete existing playlist, will try to update it instead");
-                }
+                _logger.LogInformation("No unlistened episodes found for playlist (skipped {Skipped} unresolved)", skippedCount);
+                return;
             }
 
             // Create new playlist with all items at once
@@ -571,7 +685,7 @@ public class PodcastService
             var playlist = await _playlistManager.CreatePlaylist(request);
 
             _logger.LogInformation(
-                "Auto-playlist created/updated with {Count} episodes (skipped {Skipped} unresolved). Playlist ID: {PlaylistId}",
+                "Playlist created with {Count} episodes (skipped {Skipped} unresolved). Playlist ID: {PlaylistId}",
                 itemIds.Count, skippedCount, playlist.Id);
         }
         catch (Exception ex)
@@ -583,9 +697,19 @@ public class PodcastService
     /// <summary>
     /// Downloads the podcast cover image from the RSS feed and saves it as folder.jpg
     /// in the podcast's directory. Checks both iTunes namespace and standard RSS image elements.
+    /// If no cover URL is found in the feed, copies the embedded generic cover (PortadaGenerica.jpg).
     /// </summary>
     private async Task DownloadCoverImageAsync(HttpClient client, XDocument doc, string podcastFolder)
     {
+        var coverPath = Path.Combine(podcastFolder, "folder.jpg");
+
+        // Skip if cover already exists
+        if (File.Exists(coverPath))
+        {
+            _logger.LogDebug("Cover image already exists, skipping: {Path}", podcastFolder);
+            return;
+        }
+
         var coverUrl = doc.Descendants(ItunesNs + "image")
             .Select(e => e.Attribute("href")?.Value)
             .FirstOrDefault(u => !string.IsNullOrEmpty(u));
@@ -601,23 +725,48 @@ public class PodcastService
 
         if (!string.IsNullOrEmpty(coverUrl))
         {
-            var coverPath = Path.Combine(podcastFolder, "folder.jpg");
-            if (File.Exists(coverPath))
+            try
             {
-                _logger.LogDebug("Cover image already exists, skipping download: {Path}", podcastFolder);
+                await DownloadFileAsync(client, coverUrl, coverPath);
+                _logger.LogInformation("Downloaded cover image for: {Folder}", podcastFolder);
+                return;
             }
-            else
+            catch (Exception ex)
             {
-                try
-                {
-                    await DownloadFileAsync(client, coverUrl, coverPath);
-                    _logger.LogDebug("Downloaded cover image for podcast folder: {Path}", podcastFolder);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Could not download cover image from {Url}", coverUrl);
-                }
+                _logger.LogWarning(ex, "Could not download cover image from {Url}, using generic cover", coverUrl);
             }
+        }
+
+        // No cover URL found or download failed - use generic cover
+        CopyGenericCover(coverPath);
+    }
+
+    /// <summary>
+    /// Extracts the embedded PortadaGenerica.jpg resource and copies it to the target path.
+    /// The generic cover is used as a fallback for podcasts that don't have their own image.
+    /// </summary>
+    private void CopyGenericCover(string targetPath)
+    {
+        try
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            var resourceName = "Jellyfin.Plugin.Podcasts.PortadaGenerica.jpg";
+
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null)
+            {
+                _logger.LogWarning("Generic cover resource '{Resource}' not found in assembly", resourceName);
+                return;
+            }
+
+            using var fileStream = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            stream.CopyTo(fileStream);
+
+            _logger.LogInformation("Copied generic cover to: {Path}", targetPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not copy generic cover to {Path}", targetPath);
         }
     }
 
@@ -699,6 +848,64 @@ public class PodcastService
     }
 
     /// <summary>
+    /// Trims episode records for a specific feed to keep only the latest MaxEpisodesPerFeed
+    /// non-deleted records. This prevents episode-data.xml from growing indefinitely
+    /// since we only process the latest 10 items from each RSS feed anyway.
+    /// Must be called within a lock on _dataLock.
+    /// </summary>
+    private void TrimEpisodeRecords(string feedUrl)
+    {
+        var feedRecords = _episodeRecords
+            .Where(e => e.FeedUrl == feedUrl)
+            .OrderByDescending(e => e.PublishedDate)
+            .ToList();
+
+        var nonDeletedRecords = feedRecords.Where(e => !e.IsDeleted).ToList();
+
+        if (nonDeletedRecords.Count > MaxEpisodesPerFeed)
+        {
+            var toRemove = nonDeletedRecords.Skip(MaxEpisodesPerFeed).ToList();
+            var removeUrls = toRemove.Select(e => e.EpisodeUrl).ToHashSet();
+
+            // Mark excess records as deleted so they don't re-download
+            foreach (var record in toRemove)
+            {
+                record.IsDeleted = true;
+                _logger.LogDebug("Trimmed old episode record: {Title}", record.Title);
+            }
+        }
+
+        // Also remove old deleted records
+        CleanupOldDeletedRecords();
+    }
+
+    /// <summary>
+    /// Deletes the existing "Podcast Auto Playlist" if it exists for the given user.
+    /// This ensures the playlist is always overwritten rather than duplicated.
+    /// </summary>
+    private async Task DeleteExistingPlaylistIfExists(Guid userId)
+    {
+        try
+        {
+            var existingPlaylists = _playlistManager.GetPlaylists(userId);
+            var existingPlaylist = existingPlaylists
+                .FirstOrDefault(p => string.Equals(p.Name, "Podcast Auto Playlist", StringComparison.OrdinalIgnoreCase));
+
+            if (existingPlaylist != null)
+            {
+                _logger.LogInformation("Existing 'Podcast Auto Playlist' found (ID: {Id}), deleting for recreation", existingPlaylist.Id);
+                await _playlistManager.RemovePlaylistsAsync(existingPlaylist.Id);
+                // Small delay to ensure the deletion completes before creating a new playlist
+                await Task.Delay(500);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not delete existing playlist before recreation");
+        }
+    }
+
+    /// <summary>
     /// Removes episode records that were marked as deleted more than 30 days ago.
     /// This prevents the episode-data.xml file from growing indefinitely.
     /// </summary>
@@ -707,6 +914,10 @@ public class PodcastService
         var cutoffDate = DateTime.Now.AddDays(-30);
         var removed = _episodeRecords.RemoveAll(e =>
             e.IsDeleted && e.ListenDate.HasValue && e.ListenDate.Value < cutoffDate);
+
+        // Also remove deleted records with no listen date that are older than 30 days since download
+        removed += _episodeRecords.RemoveAll(e =>
+            e.IsDeleted && !e.ListenDate.HasValue && e.DownloadDate < cutoffDate);
 
         if (removed > 0)
         {

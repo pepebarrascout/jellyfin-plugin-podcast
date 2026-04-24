@@ -5,9 +5,9 @@
   "overview": "Subscribe to podcast RSS feeds, automatically download new episodes, manage auto-deletion of listened content, and generate a daily auto-playlist of unlistened episodes.",
   "owner": "PepeBarrascout",
   "category": "Music",
-  "version": "0.0.1.11",
-  "changelog": "- Alpha release\n- RSS feed subscription management\n- Configurable update frequency (daily, weekly, monthly)\n- Auto-download of new episodes (latest 10 per podcast)\n- Cover image extraction as folder.jpg (only once, skip if exists)\n- Auto-delete after 2 days of listening (default)\n- Daily auto-playlist generation via IPlaylistManager API (database-backed)\n- Manual feed update buttons\n- Manual playlist generation button\n- Manual delete listened episodes button (red styling)\n- Podcast detection via playback events\n- Podcast folder named 'Podcasts'\n- Episode naming: YYYY-MM-DD-EpisodeName.ext\n- Clean ID3/metadata tags on download: Title, Artist, Album Artist, Album, Year, Genre\n- All extra metadata removed (comments, lyrics, etc.), cover art preserved\n- 2-second delay between metadata writes to prevent server overload",
+  "version": "0.0.2.0",
+  "changelog": "- Alpha release\n- RSS feed subscription management\n- Configurable update frequency (daily, weekly, monthly)\n- Auto-download of new episodes (latest 10 per podcast)\n- Cover image extraction as folder.jpg (only once, skip if exists)\n- Generic cover (PortadaGenerica.jpg) for podcasts without image\n- Auto-delete after 2 days of listening (default)\n- Daily auto-playlist generation via IPlaylistManager (overwrites existing)\n- Manual feed update buttons (background mode for all feeds)\n- Manual playlist generation button\n- Manual delete listened episodes button (red styling)\n- OPML export/import for podcast subscriptions\n- Podcast detection via playback events\n- Podcast folder named 'Podcasts'\n- Episode naming: YYYY-MM-DD-EpisodeName.ext\n- Clean ID3/metadata tags on download (Title, Artist, Album Artist, Album, Year, Genre)\n- Extra metadata removed (comments, lyrics, etc.), cover art preserved\n- 2-second delay between metadata writes to prevent server overload\n- Episode data trimmed to latest 10 per feed",
   "targetAbi": "10.11.0.0",
-  "timestamp": "2026-04-24T11:30:00Z",
+  "timestamp": "2026-04-24T12:00:00Z",
   "imagePath": "logo.png"
 }
