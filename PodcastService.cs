@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using Jellyfin.Plugin.Podcasts.Configuration;
 using Jellyfin.Plugin.Podcasts.Model;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Playlists;
 using MediaBrowser.Model.Entities;
@@ -31,6 +32,7 @@ public class PodcastService
     private readonly ILibraryManager _libraryManager;
     private readonly IPlaylistManager _playlistManager;
     private readonly IUserManager _userManager;
+    private readonly IUserDataManager _userDataManager;
     private readonly string _pluginDataPath;
     private readonly string _episodeDataPath;
     private readonly object _dataLock = new();
@@ -62,6 +64,7 @@ public class PodcastService
         ILibraryManager libraryManager,
         IPlaylistManager playlistManager,
         IUserManager userManager,
+        IUserDataManager userDataManager,
         string pluginDataPath)
     {
         _logger = logger;
@@ -69,6 +72,7 @@ public class PodcastService
         _libraryManager = libraryManager;
         _playlistManager = playlistManager;
         _userManager = userManager;
+        _userDataManager = userDataManager;
         _pluginDataPath = pluginDataPath;
         _episodeDataPath = Path.Combine(pluginDataPath, "episode-data.xml");
 
@@ -327,13 +331,15 @@ public class PodcastService
 
     /// <summary>
     /// Processes auto-deletion for all podcast feeds configured with the AfterTwoDays option.
+    /// Uses Jellyfin's IUserDataManager (PlayCount/Played/PlaybackPosition) as the primary
+    /// method to detect listened episodes, with fallback to the internal IsListened flag.
     /// Episodes that were listened to more than 2 days ago have their files deleted
-    /// and their records marked as deleted (to prevent re-download).
+    /// and their records marked as deleted (to prevent re-download permanently).
     /// Only the specific listened episode is deleted; other episodes remain untouched.
     /// </summary>
     public async Task ProcessAutoDeleteAsync()
     {
-        _logger.LogInformation("Starting auto-delete check...");
+        _logger.LogInformation("Starting auto-delete check (using UserData)...");
 
         var config = PodcastsPlugin.Instance?.Configuration;
         if (config == null) return;
@@ -350,21 +356,62 @@ public class PodcastService
         }
 
         var now = DateTime.Now;
+        var basePath = GetPodcastBasePath();
+        var user = _userManager.Users.FirstOrDefault();
         var toDelete = new List<EpisodeRecord>();
 
         lock (_dataLock)
         {
             LoadEpisodeData();
-            toDelete = _episodeRecords
+            var candidates = _episodeRecords
                 .Where(e => autoDeleteFeeds.Contains(e.FeedUrl)
-                    && e.IsListened
-                    && e.ListenDate.HasValue
                     && !e.IsDeleted
-                    && e.ListenDate.Value.AddDays(2) <= now)
+                    && !string.IsNullOrEmpty(e.LocalFileName))
                 .ToList();
-        }
 
-        var basePath = GetPodcastBasePath();
+            foreach (var record in candidates)
+            {
+                bool isListened = record.IsListened; // fallback
+                DateTime? listenDate = record.ListenDate;
+
+                // Primary: check Jellyfin UserData
+                if (user != null)
+                {
+                    try
+                    {
+                        var podcastName = GetPodcastNameForFeed(record.FeedUrl);
+                        var fullPath = Path.Combine(basePath, podcastName, record.LocalFileName);
+                        var item = _libraryManager.FindByPath(fullPath, false);
+
+                        if (item != null)
+                        {
+                            var userData = _userDataManager.GetUserData(user.Id, item);
+                            if (userData != null && (userData.PlayCount > 0 || userData.Played))
+                            {
+                                isListened = true;
+                                // Use Played flag date or fallback to ListenDate
+                                if (userData.Played && !listenDate.HasValue)
+                                {
+                                    listenDate = now; // Mark as listened now if no prior date
+                                }
+                                _logger.LogDebug(
+                                    "Auto-delete UserData: {Title} - PlayCount={PlayCount}, Played={Played}",
+                                    record.Title, userData.PlayCount, userData.Played);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug("Could not check UserData for auto-delete: {Title}: {Error}", record.Title, ex.Message);
+                    }
+                }
+
+                if (isListened && listenDate.HasValue && listenDate.Value.AddDays(2) <= now)
+                {
+                    toDelete.Add(record);
+                }
+            }
+        }
 
         foreach (var record in toDelete)
         {
@@ -379,8 +426,9 @@ public class PodcastService
                     _logger.LogInformation("Auto-deleted episode file: {FilePath}", fullPath);
                 }
 
+                record.IsListened = true;
                 record.IsDeleted = true;
-                _logger.LogInformation("Marked episode as deleted: {Title} (listened on {ListenDate})",
+                _logger.LogInformation("Marked episode as deleted (permanent): {Title} (listened on {ListenDate})",
                     record.Title, record.ListenDate);
             }
             catch (Exception ex)
@@ -388,9 +436,6 @@ public class PodcastService
                 _logger.LogError(ex, "Failed to auto-delete episode: {Title}", record.Title);
             }
         }
-
-        // Also clean up old deleted records (older than 30 days since deletion)
-        CleanupOldDeletedRecords();
 
         lock (_dataLock)
         {
@@ -403,26 +448,66 @@ public class PodcastService
 
     /// <summary>
     /// Immediately deletes all listened podcast episode files (regardless of the 2-day window).
+    /// Uses Jellyfin's IUserDataManager (PlayCount/Played/PlaybackPosition) as the primary
+    /// detection method, with fallback to the internal IsListened flag.
     /// Returns a summary with the count of deleted episodes.
     /// Called from the manual "Borrar escuchados" button in the config page.
     /// </summary>
     public (int deletedCount, string message) DeleteListenedEpisodes()
     {
-        _logger.LogInformation("Starting manual delete of all listened episodes...");
+        _logger.LogInformation("Starting manual delete of all listened episodes (using UserData)...");
 
         var toDelete = new List<EpisodeRecord>();
+        var basePath = GetPodcastBasePath();
+        var user = _userManager.Users.FirstOrDefault();
 
         lock (_dataLock)
         {
             LoadEpisodeData();
-            toDelete = _episodeRecords
-                .Where(e => e.IsListened && !e.IsDeleted)
+            var candidates = _episodeRecords
+                .Where(e => !e.IsDeleted && !string.IsNullOrEmpty(e.LocalFileName))
                 .ToList();
+
+            foreach (var record in candidates)
+            {
+                bool isListened = record.IsListened; // fallback to internal flag
+
+                // Primary: check Jellyfin UserData via IUserDataManager
+                if (user != null)
+                {
+                    try
+                    {
+                        var podcastName = GetPodcastNameForFeed(record.FeedUrl);
+                        var fullPath = Path.Combine(basePath, podcastName, record.LocalFileName);
+                        var item = _libraryManager.FindByPath(fullPath, false);
+
+                        if (item != null)
+                        {
+                            var userData = _userDataManager.GetUserData(user.Id, item);
+                            if (userData != null)
+                            {
+                                isListened = userData.PlayCount > 0 || userData.Played;
+                                _logger.LogDebug(
+                                    "UserData check for {Title}: PlayCount={PlayCount}, Played={Played}, Position={Position}",
+                                    record.Title, userData.PlayCount, userData.Played, userData.PlaybackPositionTicks);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug("Could not check UserData for {Title}: {Error}", record.Title, ex.Message);
+                    }
+                }
+
+                if (isListened)
+                {
+                    toDelete.Add(record);
+                }
+            }
         }
 
-        _logger.LogInformation("Found {Count} listened episodes to delete", toDelete.Count);
+        _logger.LogInformation("Found {Count} listened episodes to delete (via UserData)", toDelete.Count);
 
-        var basePath = GetPodcastBasePath();
         var deletedCount = 0;
 
         foreach (var record in toDelete)
@@ -441,6 +526,7 @@ public class PodcastService
                     _logger.LogInformation("Deleted listened episode file: {FilePath}", fullPath);
                 }
 
+                record.IsListened = true;
                 record.IsDeleted = true;
             }
             catch (Exception ex)
@@ -448,8 +534,6 @@ public class PodcastService
                 _logger.LogError(ex, "Failed to delete listened episode: {Title}", record.Title);
             }
         }
-
-        CleanupOldDeletedRecords();
 
         lock (_dataLock)
         {
@@ -579,15 +663,17 @@ public class PodcastService
     }
 
     /// <summary>
-    /// Generates a playlist containing all unlistened episodes from
-    /// podcast feeds configured with IncludeInAutoPlaylist = true.
+    /// Generates a playlist named "Podcasts" containing all episodes that have NEVER been played
+    /// from podcast feeds configured with IncludeInAutoPlaylist = true.
+    /// Uses Jellyfin's IUserDataManager (PlayCount/Played) as the primary method to determine
+    /// if an episode has been played, with fallback to the internal IsListened flag.
     /// Episodes are ordered chronologically by their publication date (oldest first).
     /// Uses IPlaylistManager to create a proper database-backed playlist in Jellyfin.
-    /// If a playlist named "Podcast Auto Playlist" already exists, it is deleted and recreated.
+    /// If a playlist named "Podcasts" already exists, it is overwritten (never duplicated).
     /// </summary>
     public async Task GenerateAutoPlaylistAsync()
     {
-        _logger.LogInformation("Generating auto-playlist...");
+        _logger.LogInformation("Generating auto-playlist (Podcasts)...");
 
         var config = PodcastsPlugin.Instance?.Configuration;
         if (config == null) return;
@@ -603,6 +689,19 @@ public class PodcastService
             return;
         }
 
+        // Get owner user (first user, typically the admin)
+        var user = _userManager.Users.FirstOrDefault();
+        if (user == null)
+        {
+            _logger.LogWarning("No users found in Jellyfin, cannot create playlist");
+            return;
+        }
+
+        var basePath = GetPodcastBasePath();
+        var itemIds = new List<Guid>();
+        var skippedCount = 0;
+        var userDataSkippedCount = 0;
+
         List<EpisodeRecord> playlistEpisodes;
 
         lock (_dataLock)
@@ -610,18 +709,13 @@ public class PodcastService
             LoadEpisodeData();
             playlistEpisodes = _episodeRecords
                 .Where(e => playlistFeeds.Contains(e.FeedUrl)
-                    && !e.IsListened
                     && !e.IsDeleted
                     && !string.IsNullOrEmpty(e.LocalFileName))
                 .OrderBy(e => e.PublishedDate)
                 .ToList();
         }
 
-        // Resolve episodes to Jellyfin library item IDs
-        var basePath = GetPodcastBasePath();
-        var itemIds = new List<Guid>();
-        var skippedCount = 0;
-
+        // Resolve episodes to Jellyfin library item IDs and check UserData
         foreach (var episode in playlistEpisodes)
         {
             try
@@ -637,29 +731,43 @@ public class PodcastService
                 }
 
                 var item = _libraryManager.FindByPath(fullPath, false);
-                if (item != null)
-                {
-                    itemIds.Add(item.Id);
-                }
-                else
+                if (item == null)
                 {
                     _logger.LogWarning("Episode file exists but not found in Jellyfin library: {Path}", fullPath);
                     skippedCount++;
+                    continue;
                 }
+
+                // Check UserData: only include episodes that have NEVER been played
+                try
+                {
+                    var userData = _userDataManager.GetUserData(user.Id, item);
+                    if (userData != null && (userData.PlayCount > 0 || userData.Played))
+                    {
+                        _logger.LogDebug("Excluding played episode from playlist: {Title} (PlayCount={PlayCount}, Played={Played})",
+                            episode.Title, userData.PlayCount, userData.Played);
+                        userDataSkippedCount++;
+                        continue;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug("Could not check UserData for {Title}: {Error}, using internal flag", episode.Title, ex.Message);
+                    // Fallback to internal IsListened flag
+                    if (episode.IsListened)
+                    {
+                        userDataSkippedCount++;
+                        continue;
+                    }
+                }
+
+                itemIds.Add(item.Id);
             }
             catch (Exception ex)
             {
                 _logger.LogDebug("Could not resolve episode {Title}: {Error}", episode.Title, ex.Message);
                 skippedCount++;
             }
-        }
-
-        // Get owner user (first user, typically the admin)
-        var user = _userManager.Users.FirstOrDefault();
-        if (user == null)
-        {
-            _logger.LogWarning("No users found in Jellyfin, cannot create playlist");
-            return;
         }
 
         try
@@ -669,14 +777,15 @@ public class PodcastService
 
             if (itemIds.Count == 0)
             {
-                _logger.LogInformation("No unlistened episodes found for playlist (skipped {Skipped} unresolved)", skippedCount);
+                _logger.LogInformation("No unplayed episodes found for playlist (skipped {Skipped} unresolved, {Played} played via UserData)",
+                    skippedCount, userDataSkippedCount);
                 return;
             }
 
             // Create new playlist with all items at once
             var request = new PlaylistCreationRequest
             {
-                Name = "Podcast Auto Playlist",
+                Name = "Podcasts",
                 ItemIdList = itemIds,
                 UserId = user.Id,
                 MediaType = Jellyfin.Data.Enums.MediaType.Audio
@@ -685,8 +794,8 @@ public class PodcastService
             var playlist = await _playlistManager.CreatePlaylist(request);
 
             _logger.LogInformation(
-                "Playlist created with {Count} episodes (skipped {Skipped} unresolved). Playlist ID: {PlaylistId}",
-                itemIds.Count, skippedCount, playlist.Id);
+                "Playlist 'Podcasts' created with {Count} episodes (skipped {Skipped} unresolved, {Played} played). Playlist ID: {PlaylistId}",
+                itemIds.Count, skippedCount, userDataSkippedCount, playlist.Id);
         }
         catch (Exception ex)
         {
@@ -880,7 +989,7 @@ public class PodcastService
     }
 
     /// <summary>
-    /// Deletes the existing "Podcast Auto Playlist" if it exists for the given user.
+    /// Deletes the existing "Podcasts" playlist if it exists for the given user.
     /// This ensures the playlist is always overwritten rather than duplicated.
     /// </summary>
     private async Task DeleteExistingPlaylistIfExists(Guid userId)
@@ -889,11 +998,11 @@ public class PodcastService
         {
             var existingPlaylists = _playlistManager.GetPlaylists(userId);
             var existingPlaylist = existingPlaylists
-                .FirstOrDefault(p => string.Equals(p.Name, "Podcast Auto Playlist", StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(p => string.Equals(p.Name, "Podcasts", StringComparison.OrdinalIgnoreCase));
 
             if (existingPlaylist != null)
             {
-                _logger.LogInformation("Existing 'Podcast Auto Playlist' found (ID: {Id}), deleting for recreation", existingPlaylist.Id);
+                _logger.LogInformation("Existing 'Podcasts' playlist found (ID: {Id}), deleting for recreation", existingPlaylist.Id);
                 await _playlistManager.RemovePlaylistsAsync(existingPlaylist.Id);
                 // Small delay to ensure the deletion completes before creating a new playlist
                 await Task.Delay(500);
@@ -906,22 +1015,43 @@ public class PodcastService
     }
 
     /// <summary>
-    /// Removes episode records that were marked as deleted more than 30 days ago.
-    /// This prevents the episode-data.xml file from growing indefinitely.
+    /// Keeps only the latest MaxEpisodesPerFeed deleted records per feed to prevent
+    /// unbounded growth, while ensuring deleted episodes are NEVER fully removed
+    /// (so they are never re-downloaded). Older deleted records beyond the latest batch
+    /// are kept as a permanent blacklist but only the most recent ones are retained.
+    /// Must be called within a lock on _dataLock.
     /// </summary>
     private void CleanupOldDeletedRecords()
     {
-        var cutoffDate = DateTime.Now.AddDays(-30);
-        var removed = _episodeRecords.RemoveAll(e =>
-            e.IsDeleted && e.ListenDate.HasValue && e.ListenDate.Value < cutoffDate);
+        // Group deleted records by feed and keep a reasonable number per feed
+        // Deleted records are NEVER fully removed - they serve as a permanent blacklist
+        // But we cap at 50 deleted records per feed to prevent unbounded XML growth
+        const int maxDeletedPerFeed = 50;
 
-        // Also remove deleted records with no listen date that are older than 30 days since download
-        removed += _episodeRecords.RemoveAll(e =>
-            e.IsDeleted && !e.ListenDate.HasValue && e.DownloadDate < cutoffDate);
+        var feedGroups = _episodeRecords
+            .Where(e => e.IsDeleted)
+            .GroupBy(e => e.FeedUrl)
+            .ToList();
+
+        var removed = 0;
+        foreach (var group in feedGroups)
+        {
+            var feedDeleted = group.OrderByDescending(e => e.PublishedDate).ToList();
+            if (feedDeleted.Count > maxDeletedPerFeed)
+            {
+                // Remove the oldest deleted records beyond the cap
+                var toRemove = feedDeleted.Skip(maxDeletedPerFeed).ToList();
+                foreach (var record in toRemove)
+                {
+                    _episodeRecords.Remove(record);
+                    removed++;
+                }
+            }
+        }
 
         if (removed > 0)
         {
-            _logger.LogInformation("Cleaned up {Count} old deleted episode records", removed);
+            _logger.LogInformation("Cleaned up {Count} excess deleted episode records (kept as permanent blacklist)", removed);
         }
     }
 
