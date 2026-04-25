@@ -989,38 +989,59 @@ public class PodcastService
     }
 
     /// <summary>
-    /// Deletes the existing "Podcasts" playlist if it exists for the given user.
-    /// This ensures the playlist is always overwritten rather than duplicated.
+    /// Deletes ALL existing playlists whose name starts with "Podcasts" for the given user.
+    /// This includes cleanup of auto-incremented duplicates (Podcasts, Podcasts1, Podcasts11, etc.).
+    /// Uses LibraryManager.DeleteItem() because PlaylistManager.RemovePlaylistsAsync() takes
+    /// a userId parameter (deletes ALL playlists for that user), not a specific playlist ID.
     /// </summary>
     private async Task DeleteExistingPlaylistIfExists(Guid userId)
     {
         try
         {
-            _logger.LogInformation("Searching for existing 'Podcasts' playlist to delete...");
+            _logger.LogInformation("Searching for existing 'Podcasts' playlists to delete...");
 
             var playlists = _playlistManager.GetPlaylists(userId).ToList();
 
             _logger.LogInformation("Found {Count} playlists for user: {Names}",
-                playlists.Count, string.Join(", ", playlists.Select(p => $"'{p.Name}' (ID:{p.Id})")));
+                playlists.Count, playlists.Count > 0
+                    ? string.Join(", ", playlists.Select(p => $"'{p.Name}' (ID:{p.Id})"))
+                    : "(none)");
 
-            var existingPlaylist = playlists
-                .FirstOrDefault(p => string.Equals(p.Name, "Podcasts", StringComparison.OrdinalIgnoreCase));
+            // Find ALL playlists starting with "Podcasts" (handles Podcasts, Podcasts1, Podcasts11, etc.)
+            var toDelete = playlists
+                .Where(p => p.Name.StartsWith("Podcasts", StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
-            if (existingPlaylist != null)
+            if (toDelete.Count > 0)
             {
-                _logger.LogInformation("Existing 'Podcasts' playlist found (ID: {Id}), deleting for recreation", existingPlaylist.Id);
-                await _playlistManager.RemovePlaylistsAsync(existingPlaylist.Id);
-                await Task.Delay(500);
+                foreach (var playlistToDelete in toDelete)
+                {
+                    try
+                    {
+                        _logger.LogInformation("Deleting playlist '{Name}' (ID: {Id})", playlistToDelete.Name, playlistToDelete.Id);
+                        _libraryManager.DeleteItem(playlistToDelete, new DeleteOptions { DeleteFileLocation = true });
+                        _logger.LogInformation("Successfully deleted playlist '{Name}' (ID: {Id})", playlistToDelete.Name, playlistToDelete.Id);
+                    }
+                    catch (Exception innerEx)
+                    {
+                        _logger.LogError(innerEx, "Failed to delete individual playlist '{Name}' (ID: {Id})", playlistToDelete.Name, playlistToDelete.Id);
+                    }
+                }
+
+                // Wait for Jellyfin to process the deletions before creating a new playlist
+                await Task.Delay(1000);
             }
             else
             {
                 _logger.LogWarning("No existing 'Podcasts' playlist found. Available: {Names}",
-                    string.Join(", ", playlists.Select(p => p.Name)));
+                    playlists.Count > 0
+                        ? string.Join(", ", playlists.Select(p => p.Name))
+                        : "(none)");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Could not delete existing playlist before recreation");
+            _logger.LogError(ex, "Error in DeleteExistingPlaylistIfExists");
         }
     }
 
