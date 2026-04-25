@@ -14,6 +14,7 @@ using MediaBrowser.Controller.Playlists;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Playlists;
 using MediaBrowser.Model.Querying;
+using Jellyfin.Data.Enums;
 using Microsoft.Extensions.Logging;
 using TagFile = TagLib.File;
 
@@ -998,23 +999,26 @@ public class PodcastService
         try
         {
             var user = _userManager.GetUserById(userId);
-            var query = new InternalItemsQuery(user) { Limit = 1000 };
-            var allItems = _libraryManager.GetItemList(query);
-            var existingPlaylist = allItems
-                .FirstOrDefault(p => p is Playlist
-                    && string.Equals(p.Name, "Podcasts", StringComparison.OrdinalIgnoreCase));
+            var query = new InternalItemsQuery(user)
+            {
+                IncludeItemTypes = new[] { BaseItemKind.Playlist },
+                Limit = 100
+            };
+
+            var playlists = _libraryManager.GetItemList(query);
+            var existingPlaylist = playlists
+                .FirstOrDefault(p => string.Equals(p.Name, "Podcasts", StringComparison.OrdinalIgnoreCase));
 
             if (existingPlaylist != null)
             {
                 _logger.LogInformation("Existing 'Podcasts' playlist found (ID: {Id}), deleting for recreation", existingPlaylist.Id);
                 await _playlistManager.RemovePlaylistsAsync(existingPlaylist.Id);
-                // Small delay to ensure the deletion completes before creating a new playlist
                 await Task.Delay(500);
             }
             else
             {
-                _logger.LogDebug("No existing 'Podcasts' playlist found. All playlists: {Playlists}",
-                    string.Join(", ", allItems.Where(i => i is Playlist).Select(p => p.Name)));
+                _logger.LogDebug("No existing 'Podcasts' playlist found among {Count} playlists: {Names}",
+                    playlists.Count, string.Join(", ", playlists.Select(p => p.Name)));
             }
         }
         catch (Exception ex)

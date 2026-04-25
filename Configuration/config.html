@@ -798,25 +798,18 @@
             });
         });
 
-        // --- Generate playlist manually (fire-and-forget, same pattern as UpdateAll) ---
+        // --- Generate playlist manually ---
         function generatePlaylist() {
-            if (!currentConfig || !currentConfig.feeds || currentConfig.feeds.length === 0) {
-                Dashboard.alert({ title: 'Sin podcasts', message: 'No hay podcasts configurados.' });
-                return;
-            }
-
+            showUpdateProgress('Generando playlist...');
             var btn = document.getElementById('btnGeneratePlaylist');
             btn.disabled = true;
 
             apiPost('Plugins/Podcasts/GeneratePlaylist', null)
                 .then(function (result) {
                     btn.disabled = false;
+                    hideUpdateProgress();
                     if (result.success) {
-                        showUpdateProgress(result.message);
-                        setTimeout(function () {
-                            hideUpdateProgress();
-                        }, 8000);
-                        Dashboard.alert({ title: 'Playlist', message: result.message });
+                        Dashboard.alert({ title: 'Playlist generada', message: result.message });
                     } else {
                         Dashboard.alert({ title: 'Error', message: result.error || 'Error desconocido.' });
                     }
@@ -824,7 +817,8 @@
                 .catch(function (error) {
                     console.error('[Podcasts] GeneratePlaylist error:', error);
                     btn.disabled = false;
-                    Dashboard.alert({ title: 'Error', message: 'No se pudo conectar al servidor para generar la playlist.' });
+                    hideUpdateProgress();
+                    Dashboard.alert({ title: 'Error', message: 'No se pudo conectar al servidor para crear la lista de reproduccion.' });
                 });
         }
 

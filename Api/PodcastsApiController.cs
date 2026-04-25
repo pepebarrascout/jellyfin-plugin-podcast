@@ -127,33 +127,20 @@ public class PodcastsApiController : ControllerBase
 
     /// <summary>
     /// Triggers a manual generation of the auto-playlist.
-    /// Runs in a background task to avoid HTTP timeout (same pattern as UpdateAll).
     /// Called from the "Generar playlist" button in the config page.
     /// </summary>
     [HttpPost("GeneratePlaylist")]
-    public ActionResult GeneratePlaylist()
+    public async Task<ActionResult> GeneratePlaylist()
     {
         try
         {
-            _logger.LogInformation("Manual playlist generation triggered (background)");
-
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await _podcastService.GenerateAutoPlaylistAsync();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Background playlist generation failed");
-                }
-            });
-
-            return Ok(new { success = true, message = "Generacion de playlist iniciada en segundo plano. La lista se actualizara en unos segundos." });
+            _logger.LogInformation("Manual playlist generation triggered");
+            await _podcastService.GenerateAutoPlaylistAsync();
+            return Ok(new { success = true, message = "Lista de reproduccion generada correctamente." });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error starting GeneratePlaylist");
+            _logger.LogError(ex, "Error in GeneratePlaylist endpoint");
             return Ok(new { success = false, error = $"Error interno: {ex.Message}" });
         }
     }
