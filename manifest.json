@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/pepebarrascout/jellyfin-plugin-podcast/main/logo.png",
     "versions": [
       {
+        "version": "0.0.2.3",
+        "changelog": "- Fixed: Playlist generation now runs in background (fire-and-forget) to prevent HTTP timeout\n- Fixed: 'Generar playlist' button returns immediately with progress message\n- Fixed: Playlist overwrite uses LibraryManager.GetItemList() for reliable lookup\n- Fixed: IUserDataManager.GetUserData() uses User object (Jellyfin 10.11.x API)",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/download/v0.0.2.3/jellyfin-plugin-podcasts_0.0.2.3.zip",
+        "checksum": "4FE1BA49D8F557D17A460ECC665B8464",
+        "timestamp": "2026-04-25T17:00:00Z"
+      },
+      {
         "version": "0.0.2.2",
         "changelog": "- Fixed: Playlist 'Podcasts' is now properly overwritten instead of creating duplicates\n- Fixed: Playlist search uses LibraryManager.GetItemList() for reliable playlist lookup\n- Fixed: IUserDataManager.GetUserData() now uses User object (API change in Jellyfin 10.11.x)\n- Added: Diagnostic logging when existing playlist is not found during overwrite",
         "targetAbi": "10.11.0.0",
