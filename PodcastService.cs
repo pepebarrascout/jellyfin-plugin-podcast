@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Jellyfin.Plugin.Podcasts.Configuration;
@@ -669,7 +670,9 @@ public class PodcastService
     /// if an episode has been played, with fallback to the internal IsListened flag.
     /// Episodes are ordered chronologically by their publication date (oldest first).
     /// Uses IPlaylistManager to create a proper database-backed playlist in Jellyfin.
-    /// If a playlist named "Podcasts" already exists, it is overwritten (never duplicated).
+    /// If a playlist named "Podcasts" already exists, it is updated in-place (LinkedChildren).
+    /// Duplicate playlists (Podcasts1, Podcasts11, etc.) are cleaned up after update.
+    /// This approach follows the jellyfin-smartlists-plugin pattern for reliable playlist management.
     /// </summary>
     public async Task GenerateAutoPlaylistAsync()
     {
@@ -699,6 +702,7 @@ public class PodcastService
 
         var basePath = GetPodcastBasePath();
         var itemIds = new List<Guid>();
+        var itemPaths = new Dictionary<Guid, string>();
         var skippedCount = 0;
         var userDataSkippedCount = 0;
 
@@ -762,6 +766,7 @@ public class PodcastService
                 }
 
                 itemIds.Add(item.Id);
+                itemPaths[item.Id] = fullPath;
             }
             catch (Exception ex)
             {
@@ -772,9 +777,6 @@ public class PodcastService
 
         try
         {
-            // Always delete existing playlist first to ensure a clean overwrite
-            await DeleteExistingPlaylistIfExists(user.Id);
-
             if (itemIds.Count == 0)
             {
                 _logger.LogInformation("No unplayed episodes found for playlist (skipped {Skipped} unresolved, {Played} played via UserData)",
@@ -782,24 +784,61 @@ public class PodcastService
                 return;
             }
 
-            // Create new playlist with all items at once
-            var request = new PlaylistCreationRequest
+            // Build LinkedChild array (same pattern as jellyfin-smartlists-plugin)
+            var linkedChildren = itemIds
+                .Select(id => new LinkedChild { ItemId = id, Path = itemPaths[id] })
+                .ToArray();
+
+            // Try to find existing "Podcasts" playlist to update in-place
+            var existingPlaylist = FindPlaylistByName(user.Id, "Podcasts");
+
+            if (existingPlaylist != null)
             {
-                Name = "Podcasts",
-                ItemIdList = itemIds,
-                UserId = user.Id,
-                MediaType = Jellyfin.Data.Enums.MediaType.Audio
-            };
+                // UPDATE existing playlist in-place (no delete/recreate)
+                _logger.LogInformation(
+                    "Found existing 'Podcasts' playlist (ID: {Id}), updating {Count} episodes in-place",
+                    existingPlaylist.Id, linkedChildren.Length);
 
-            var playlist = await _playlistManager.CreatePlaylist(request);
+                existingPlaylist.LinkedChildren = linkedChildren;
+                await existingPlaylist.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, CancellationToken.None);
 
-            _logger.LogInformation(
-                "Playlist 'Podcasts' created with {Count} episodes (skipped {Skipped} unresolved, {Played} played). Playlist ID: {PlaylistId}",
-                itemIds.Count, skippedCount, userDataSkippedCount, playlist.Id);
+                _logger.LogInformation(
+                    "Playlist 'Podcasts' UPDATED in-place with {Count} episodes (skipped {Skipped} unresolved, {Played} played)",
+                    linkedChildren.Length, skippedCount, userDataSkippedCount);
+            }
+            else
+            {
+                // CREATE new playlist
+                _logger.LogInformation("No existing 'Podcasts' playlist found, creating new one");
+
+                var request = new PlaylistCreationRequest
+                {
+                    Name = "Podcasts",
+                    ItemIdList = itemIds,
+                    UserId = user.Id,
+                    MediaType = Jellyfin.Data.Enums.MediaType.Audio
+                };
+
+                var result = await _playlistManager.CreatePlaylist(request);
+
+                // Retrieve the created playlist and set LinkedChildren to persist items
+                if (_libraryManager.GetItemById(new Guid(result.Id)) is Playlist newPlaylist)
+                {
+                    newPlaylist.LinkedChildren = linkedChildren;
+                    await newPlaylist.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, CancellationToken.None);
+                }
+
+                _logger.LogInformation(
+                    "Playlist 'Podcasts' CREATED with {Count} episodes (skipped {Skipped} unresolved, {Played} played). Playlist ID: {PlaylistId}",
+                    linkedChildren.Length, skippedCount, userDataSkippedCount, result.Id);
+            }
+
+            // Clean up duplicate playlists (Podcasts1, Podcasts11, etc.)
+            await CleanupDuplicatePlaylistsAsync(user.Id);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate auto-playlist via IPlaylistManager");
+            _logger.LogError(ex, "Failed to generate auto-playlist");
         }
     }
 
@@ -989,59 +1028,77 @@ public class PodcastService
     }
 
     /// <summary>
-    /// Deletes ALL existing playlists whose name starts with "Podcasts" for the given user.
-    /// This includes cleanup of auto-incremented duplicates (Podcasts, Podcasts1, Podcasts11, etc.).
-    /// Uses LibraryManager.DeleteItem() because PlaylistManager.RemovePlaylistsAsync() takes
-    /// a userId parameter (deletes ALL playlists for that user), not a specific playlist ID.
+    /// Finds a playlist by exact name (case-insensitive) for the given user.
+    /// Uses PlaylistManager.GetPlaylists() which returns IEnumerable of Playlist.
     /// </summary>
-    private async Task DeleteExistingPlaylistIfExists(Guid userId)
+    private Playlist? FindPlaylistByName(Guid userId, string name)
     {
         try
         {
-            _logger.LogInformation("Searching for existing 'Podcasts' playlists to delete...");
+            var playlists = _playlistManager.GetPlaylists(userId);
+            var match = playlists.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
 
-            var playlists = _playlistManager.GetPlaylists(userId).ToList();
-
-            _logger.LogInformation("Found {Count} playlists for user: {Names}",
-                playlists.Count, playlists.Count > 0
-                    ? string.Join(", ", playlists.Select(p => $"'{p.Name}' (ID:{p.Id})"))
-                    : "(none)");
-
-            // Find ALL playlists starting with "Podcasts" (handles Podcasts, Podcasts1, Podcasts11, etc.)
-            var toDelete = playlists
-                .Where(p => p.Name.StartsWith("Podcasts", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            if (toDelete.Count > 0)
+            if (match != null)
             {
-                foreach (var playlistToDelete in toDelete)
-                {
-                    try
-                    {
-                        _logger.LogInformation("Deleting playlist '{Name}' (ID: {Id})", playlistToDelete.Name, playlistToDelete.Id);
-                        _libraryManager.DeleteItem(playlistToDelete, new DeleteOptions { DeleteFileLocation = true });
-                        _logger.LogInformation("Successfully deleted playlist '{Name}' (ID: {Id})", playlistToDelete.Name, playlistToDelete.Id);
-                    }
-                    catch (Exception innerEx)
-                    {
-                        _logger.LogError(innerEx, "Failed to delete individual playlist '{Name}' (ID: {Id})", playlistToDelete.Name, playlistToDelete.Id);
-                    }
-                }
+                _logger.LogInformation("Found playlist '{Name}' by name (ID: {Id})", match.Name, match.Id);
+                return match;
+            }
 
-                // Wait for Jellyfin to process the deletions before creating a new playlist
-                await Task.Delay(1000);
-            }
-            else
-            {
-                _logger.LogWarning("No existing 'Podcasts' playlist found. Available: {Names}",
-                    playlists.Count > 0
-                        ? string.Join(", ", playlists.Select(p => p.Name))
-                        : "(none)");
-            }
+            _logger.LogDebug("No playlist found with name '{Name}' for user {UserId}", name, userId);
+            return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in DeleteExistingPlaylistIfExists");
+            _logger.LogError(ex, "Error searching for playlist by name '{Name}'", name);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Cleans up duplicate playlists (e.g., Podcasts1, Podcasts11) that were created
+    /// by the old delete-and-recreate approach. Only deletes playlists whose name starts
+    /// with "Podcasts" but is NOT exactly "Podcasts".
+    /// Uses DeleteItem with notifyParent=true (same pattern as jellyfin-smartlists-plugin).
+    /// </summary>
+    private async Task CleanupDuplicatePlaylistsAsync(Guid userId)
+    {
+        try
+        {
+            var playlists = _playlistManager.GetPlaylists(userId).ToList();
+
+            var duplicates = playlists
+                .Where(p => p.Name.StartsWith("Podcasts", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(p.Name, "Podcasts", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (duplicates.Count == 0)
+            {
+                _logger.LogDebug("No duplicate 'Podcasts*' playlists to clean up");
+                return;
+            }
+
+            _logger.LogInformation("Found {Count} duplicate playlists to clean up: {Names}",
+                duplicates.Count, string.Join(", ", duplicates.Select(p => $"'{p.Name}' (ID:{p.Id})")));
+
+            foreach (var dup in duplicates)
+            {
+                try
+                {
+                    _logger.LogInformation("Deleting duplicate playlist '{Name}' (ID: {Id})", dup.Name, dup.Id);
+                    _libraryManager.DeleteItem(dup, new DeleteOptions { DeleteFileLocation = true }, true);
+                    _logger.LogInformation("Successfully deleted duplicate playlist '{Name}' (ID: {Id})", dup.Name, dup.Id);
+                }
+                catch (Exception innerEx)
+                {
+                    _logger.LogError(innerEx, "Failed to delete duplicate playlist '{Name}' (ID: {Id})", dup.Name, dup.Id);
+                }
+            }
+
+            await Task.Delay(500);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cleaning up duplicate playlists");
         }
     }
 
