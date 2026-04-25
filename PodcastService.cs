@@ -13,6 +13,7 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Playlists;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Playlists;
+using MediaBrowser.Model.Querying;
 using Microsoft.Extensions.Logging;
 using TagFile = TagLib.File;
 
@@ -996,8 +997,15 @@ public class PodcastService
     {
         try
         {
-            var existingPlaylists = _playlistManager.GetPlaylists(userId);
-            var existingPlaylist = existingPlaylists
+            var user = _userManager.GetUserById(userId);
+            var query = new InternalItemsQuery(user)
+            {
+                IncludeItemTypes = new[] { BaseItemKind.Playlist },
+                Limit = 100
+            };
+
+            var allPlaylists = _libraryManager.GetItemList(query);
+            var existingPlaylist = allPlaylists
                 .FirstOrDefault(p => string.Equals(p.Name, "Podcasts", StringComparison.OrdinalIgnoreCase));
 
             if (existingPlaylist != null)
@@ -1006,6 +1014,11 @@ public class PodcastService
                 await _playlistManager.RemovePlaylistsAsync(existingPlaylist.Id);
                 // Small delay to ensure the deletion completes before creating a new playlist
                 await Task.Delay(500);
+            }
+            else
+            {
+                _logger.LogDebug("No existing 'Podcasts' playlist found. All playlists: {Playlists}",
+                    string.Join(", ", allPlaylists.Select(p => p.Name)));
             }
         }
         catch (Exception ex)
