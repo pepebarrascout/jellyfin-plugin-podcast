@@ -386,7 +386,7 @@ public class PodcastService
 
                         if (item != null)
                         {
-                            var userData = _userDataManager.GetUserData(user.Id, item);
+                            var userData = _userDataManager.GetUserData(user, item);
                             if (userData != null && (userData.PlayCount > 0 || userData.Played))
                             {
                                 isListened = true;
@@ -484,7 +484,7 @@ public class PodcastService
 
                         if (item != null)
                         {
-                            var userData = _userDataManager.GetUserData(user.Id, item);
+                            var userData = _userDataManager.GetUserData(user, item);
                             if (userData != null)
                             {
                                 isListened = userData.PlayCount > 0 || userData.Played;
@@ -742,7 +742,7 @@ public class PodcastService
                 // Check UserData: only include episodes that have NEVER been played
                 try
                 {
-                    var userData = _userDataManager.GetUserData(user.Id, item);
+                    var userData = _userDataManager.GetUserData(user, item);
                     if (userData != null && (userData.PlayCount > 0 || userData.Played))
                     {
                         _logger.LogDebug("Excluding played episode from playlist: {Title} (PlayCount={PlayCount}, Played={Played})",
@@ -998,15 +998,11 @@ public class PodcastService
         try
         {
             var user = _userManager.GetUserById(userId);
-            var query = new InternalItemsQuery(user)
-            {
-                IncludeItemTypes = new[] { BaseItemKind.Playlist },
-                Limit = 100
-            };
-
-            var allPlaylists = _libraryManager.GetItemList(query);
-            var existingPlaylist = allPlaylists
-                .FirstOrDefault(p => string.Equals(p.Name, "Podcasts", StringComparison.OrdinalIgnoreCase));
+            var query = new InternalItemsQuery(user) { Limit = 1000 };
+            var allItems = _libraryManager.GetItemList(query);
+            var existingPlaylist = allItems
+                .FirstOrDefault(p => p is Playlist
+                    && string.Equals(p.Name, "Podcasts", StringComparison.OrdinalIgnoreCase));
 
             if (existingPlaylist != null)
             {
@@ -1018,7 +1014,7 @@ public class PodcastService
             else
             {
                 _logger.LogDebug("No existing 'Podcasts' playlist found. All playlists: {Playlists}",
-                    string.Join(", ", allPlaylists.Select(p => p.Name)));
+                    string.Join(", ", allItems.Where(i => i is Playlist).Select(p => p.Name)));
             }
         }
         catch (Exception ex)
