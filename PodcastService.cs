@@ -13,8 +13,6 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Playlists;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Playlists;
-using MediaBrowser.Model.Querying;
-using Jellyfin.Data.Enums;
 using Microsoft.Extensions.Logging;
 using TagFile = TagLib.File;
 
@@ -998,14 +996,13 @@ public class PodcastService
     {
         try
         {
-            var user = _userManager.GetUserById(userId);
-            var query = new InternalItemsQuery(user)
-            {
-                IncludeItemTypes = new[] { BaseItemKind.Playlist },
-                Limit = 100
-            };
+            _logger.LogInformation("Searching for existing 'Podcasts' playlist to delete...");
 
-            var playlists = _libraryManager.GetItemList(query);
+            var playlists = _playlistManager.GetPlaylists(userId).ToList();
+
+            _logger.LogInformation("Found {Count} playlists for user: {Names}",
+                playlists.Count, string.Join(", ", playlists.Select(p => $"'{p.Name}' (ID:{p.Id})")));
+
             var existingPlaylist = playlists
                 .FirstOrDefault(p => string.Equals(p.Name, "Podcasts", StringComparison.OrdinalIgnoreCase));
 
@@ -1017,13 +1014,13 @@ public class PodcastService
             }
             else
             {
-                _logger.LogDebug("No existing 'Podcasts' playlist found among {Count} playlists: {Names}",
-                    playlists.Count, string.Join(", ", playlists.Select(p => p.Name)));
+                _logger.LogWarning("No existing 'Podcasts' playlist found. Available: {Names}",
+                    string.Join(", ", playlists.Select(p => p.Name)));
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not delete existing playlist before recreation");
+            _logger.LogError(ex, "Could not delete existing playlist before recreation");
         }
     }
 

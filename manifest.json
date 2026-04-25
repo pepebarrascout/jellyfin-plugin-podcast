@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/pepebarrascout/jellyfin-plugin-podcast/main/logo.png",
     "versions": [
       {
+        "version": "0.0.2.5",
+        "changelog": "- Fixed: Playlist delete now uses PlaylistManager.GetPlaylists() correctly (returns IEnumerable<Playlist>)\n- Added: Detailed logging of all found playlists for debugging\n- Fixed: Playlist 'Podcasts' is properly found and deleted before recreation\n- Fixed: IUserDataManager.GetUserData() uses User object (Jellyfin 10.11.x)",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/download/v0.0.2.5/jellyfin-plugin-podcasts_0.0.2.5.zip",
+        "checksum": "D29C5CE350562ECD04375D30A2510174",
+        "timestamp": "2026-04-25T19:00:00Z"
+      },
+      {
         "version": "0.0.2.4",
         "changelog": "- Fixed: Playlist search now filters by BaseItemKind.Playlist (fast, only queries playlists)\n- Fixed: Playlist generation is synchronous again (fast with efficient query)\n- Fixed: Playlist 'Podcasts' is properly deleted before recreation\n- Fixed: IUserDataManager.GetUserData() uses User object (Jellyfin 10.11.x)",
         "targetAbi": "10.11.0.0",
