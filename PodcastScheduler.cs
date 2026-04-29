@@ -5,6 +5,8 @@ using MediaBrowser.Controller.Session;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using Timer = System.Threading.Timer;
+
 namespace Jellyfin.Plugin.Podcasts;
 
 /// <summary>
@@ -27,6 +29,12 @@ public class PodcastScheduler : IHostedService, IDisposable
     /// Used to determine if an episode has been played to at least 90% completion.
     /// </summary>
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, PlaybackTracker> _activeTrackers = new();
+
+    /// <summary>
+    /// Timer that triggers daily cleanup of expired deleted-episodes.json entries at 23:50.
+    /// Removes records older than 6 months from the blacklist.
+    /// </summary>
+    private Timer? _cleanupTimer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PodcastScheduler"/> class.
@@ -53,6 +61,9 @@ public class PodcastScheduler : IHostedService, IDisposable
         _sessionManager.PlaybackStopped += OnPlaybackStopped;
         _sessionManager.PlaybackProgress += OnPlaybackProgress;
 
+        // Schedule daily cleanup of deleted-episodes.json at 23:50
+        ScheduleDailyCleanup();
+
         _logger.LogInformation("Podcast scheduler started. Scheduled tasks available in Dashboard > Scheduled Tasks > Podcasts");
 
         return Task.CompletedTask;
@@ -73,10 +84,51 @@ public class PodcastScheduler : IHostedService, IDisposable
     }
 
     /// <summary>
+    /// Schedules a daily timer to clean up expired deleted-episodes.json entries at 23:50.
+    /// Calculates the time remaining until 23:50 and sets up a recurring daily timer.
+    /// </summary>
+    private void ScheduleDailyCleanup()
+    {
+        var now = DateTime.Now;
+        var target = new DateTime(now.Year, now.Month, now.Day, 23, 50, 0);
+
+        // If 23:50 has already passed today, schedule for tomorrow
+        if (now >= target)
+        {
+            target = target.AddDays(1);
+        }
+
+        var initialDelay = target - now;
+        var dailyInterval = TimeSpan.FromHours(24);
+
+        _cleanupTimer = new Timer(
+            _ =>
+            {
+                try
+                {
+                    _logger.LogInformation("Daily cleanup: running deleted-episodes.json maintenance at 23:50");
+                    _podcastService.CleanupDeletedBlacklistPublic();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error in daily cleanup timer callback");
+                }
+            },
+            null,
+            dueTime: initialDelay,
+            period: dailyInterval);
+
+        _logger.LogInformation(
+            "Daily cleanup timer scheduled. Next run at {Target:yyyy-MM-dd HH:mm:ss} (in {Delay:F0} minutes)",
+            target, initialDelay.TotalMinutes);
+    }
+
+    /// <summary>
     /// Releases resources used by the scheduler.
     /// </summary>
     public void Dispose()
     {
+        _cleanupTimer?.Dispose();
         GC.SuppressFinalize(this);
     }
 

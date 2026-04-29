@@ -82,7 +82,8 @@ public class PodcastsPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
                 EmbeddedResourcePath = string.Format(
                     CultureInfo.InvariantCulture,
                     "{0}.Configuration.config.html",
-                    GetType().Namespace)
+                    GetType().Namespace),
+                EnableInMainMenu = false
             }
         ];
     }

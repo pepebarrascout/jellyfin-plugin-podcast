@@ -1354,8 +1354,17 @@ public class PodcastService
     }
 
     /// <summary>
+    /// Public wrapper for CleanupOldDeletedBlacklistEntries, called by the daily cleanup timer
+    /// in PodcastScheduler at 23:50. Thread-safe.
+    /// </summary>
+    public void CleanupDeletedBlacklistPublic()
+    {
+        CleanupOldDeletedBlacklistEntries();
+    }
+
+    /// <summary>
     /// Removes deleted episode records older than 6 months from the JSON blacklist.
-    /// Called after each auto-delete or manual delete operation.
+    /// Called after each auto-delete or manual delete operation, and daily at 23:50 via timer.
     /// Thread-safe via _deletedLock.
     /// </summary>
     private void CleanupOldDeletedBlacklistEntries()

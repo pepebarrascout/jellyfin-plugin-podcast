@@ -46,6 +46,12 @@ public class GeneratePlaylistTask : IScheduledTask
     }
 
     /// <inheritdoc />
+    public bool IsHidden => false;
+
+    /// <inheritdoc />
+    public bool IsEnabled => true;
+
+    /// <inheritdoc />
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Scheduled task: Generating podcast playlist...");
