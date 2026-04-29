@@ -488,7 +488,7 @@ public class PodcastService
                         // If we have a tracked listen date, use it.
                         // If not (e.g. played from an external client), assume today as the listen date.
                         var record = FindMatchingRecord(feed.FeedUrl, Path.GetFileName(filePath));
-                        var listenDate = record?.ListenDate ?? now;
+                        var listenDate = record?.ListenDate ?? userData.LastPlayedDate ?? now;
 
                         if (listenDate.AddDays(2) > now)
                         {

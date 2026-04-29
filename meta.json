@@ -5,9 +5,9 @@
   "overview": "Subscribe to podcast RSS feeds, automatically download new episodes, manage auto-deletion of listened content, and generate a daily auto-playlist of unlistened episodes.",
   "owner": "PepeBarrascout",
   "category": "Music",
-  "version": "0.0.2.7",
-  "changelog": "- Fixed: Scheduled Tasks (IScheduledTask) now properly implement IsHidden and IsEnabled for Jellyfin 10.11\n- Fixed: Plugin configuration page button now visible in Jellyfin dashboard\n- NEW: Automatic cleanup of deleted-episodes.json at 23:50 daily via Timer\n- NEW: Deleted episodes blacklist with 6-month retention\n- NEW: 3 configurable scheduled tasks in Jellyfin dashboard\n- Users configure task schedules from Dashboard > Scheduled Tasks > Podcasts\n- PodcastScheduler handles playback monitoring + daily cleanup timer",
+  "version": "0.0.2.8",
+  "changelog": "- Fixed: Auto-delete now uses Jellyfin LastPlayedDate as fallback when internal ListenDate is not tracked\n- Fixed: Episodes played from external clients (phone, TV app) now correctly get a 2-day grace period based on LastPlayedDate\n- Fixed: Auto-delete ALWAYS enforces the 2-day window before deleting episodes\n- Fixed: Auto-delete scans actual podcast directories on disk instead of relying solely on episode-data.xml\n- Fixed: Episodes not found in Jellyfin library are logged and skipped (no silent failures)\n- Improved: All diagnostic messages use Information level (visible in normal logs)\n- Improved: Logs show listen date and scheduled delete date for transparency",
   "targetAbi": "10.11.0.0",
-  "timestamp": "2026-04-24T12:22:00Z",
+  "timestamp": "2026-04-30T20:30:00Z",
   "imagePath": "logo.png"
 }
