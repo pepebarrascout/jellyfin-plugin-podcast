@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -36,8 +38,16 @@ public class PodcastService
     private readonly IUserDataManager _userDataManager;
     private readonly string _pluginDataPath;
     private readonly string _episodeDataPath;
+    private readonly string _deletedEpisodesPath;
     private readonly object _dataLock = new();
+    private readonly object _deletedLock = new();
     private List<EpisodeRecord> _episodeRecords = new();
+    private List<DeletedEpisodeRecord> _deletedRecords = new();
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
 
     /// <summary>
     /// iTunes XML namespace used in podcast RSS feeds for cover images and other metadata.
@@ -55,6 +65,12 @@ public class PodcastService
     /// there is no reason to keep more than 10 records per feed.
     /// </summary>
     private const int MaxEpisodesPerFeed = 10;
+
+    /// <summary>
+    /// Retention period for deleted episode records in deleted-episodes.json.
+    /// Episodes deleted more than 6 months ago are removed from the blacklist.
+    /// </summary>
+    private static readonly TimeSpan DeletedRecordRetention = TimeSpan.FromDays(180);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PodcastService"/> class.
@@ -76,12 +92,18 @@ public class PodcastService
         _userDataManager = userDataManager;
         _pluginDataPath = pluginDataPath;
         _episodeDataPath = Path.Combine(pluginDataPath, "episode-data.xml");
+        _deletedEpisodesPath = Path.Combine(pluginDataPath, "deleted-episodes.json");
 
         Directory.CreateDirectory(_pluginDataPath);
 
         lock (_dataLock)
         {
             LoadEpisodeData();
+        }
+
+        lock (_deletedLock)
+        {
+            LoadDeletedEpisodes();
         }
     }
 
@@ -164,6 +186,17 @@ public class PodcastService
                     .Select(e => e.EpisodeUrl)
                     .ToHashSet();
 
+                // Also check the deleted episodes blacklist (JSON file with 6-month retention)
+                // This prevents re-downloading episodes that were previously deleted
+                HashSet<string> deletedUrls;
+                lock (_deletedLock)
+                {
+                    deletedUrls = _deletedRecords
+                        .Select(e => e.EpisodeUrl)
+                        .ToHashSet();
+                }
+                existingUrls.UnionWith(deletedUrls);
+
                 foreach (var item in items)
                 {
                     var enclosure = item.Element("enclosure");
@@ -179,8 +212,11 @@ public class PodcastService
                         continue;
                     }
 
-                    // Skip if already downloaded and not deleted
-                    if (existingUrls.Contains(episodeUrl)) continue;
+                    // Skip if already downloaded, deleted, or in the deleted blacklist
+                    if (existingUrls.Contains(episodeUrl))
+                    {
+                        continue;
+                    }
 
                     var title = item.Element("title")?.Value?.Trim() ?? "Unknown Episode";
                     var pubDateStr = item.Element("pubDate")?.Value;
@@ -431,6 +467,9 @@ public class PodcastService
                 record.IsDeleted = true;
                 _logger.LogInformation("Marked episode as deleted (permanent): {Title} (listened on {ListenDate})",
                     record.Title, record.ListenDate);
+
+                // Add to deleted episodes blacklist (JSON file with 6-month retention)
+                AddToDeletedBlacklist(record);
             }
             catch (Exception ex)
             {
@@ -442,6 +481,9 @@ public class PodcastService
         {
             SaveEpisodeData();
         }
+
+        // Cleanup old deleted records (older than 6 months)
+        CleanupOldDeletedBlacklistEntries();
 
         await Task.CompletedTask;
         _logger.LogInformation("Auto-delete check complete. Processed {Count} episodes", toDelete.Count);
@@ -529,6 +571,9 @@ public class PodcastService
 
                 record.IsListened = true;
                 record.IsDeleted = true;
+
+                // Add to deleted episodes blacklist (JSON file with 6-month retention)
+                AddToDeletedBlacklist(record);
             }
             catch (Exception ex)
             {
@@ -540,6 +585,9 @@ public class PodcastService
         {
             SaveEpisodeData();
         }
+
+        // Cleanup old deleted records (older than 6 months)
+        CleanupOldDeletedBlacklistEntries();
 
         var message = deletedCount > 0
             ? $"Se borraron {deletedCount} episodio(s) escuchado(s)."
@@ -1225,6 +1273,110 @@ public class PodcastService
         var feed = config?.Feeds.FirstOrDefault(f =>
             string.Equals(f.FeedUrl, feedUrl, StringComparison.OrdinalIgnoreCase));
         return feed?.Name ?? "Unknown Podcast";
+    }
+
+    /// <summary>
+    /// Loads deleted episode records from the JSON blacklist file.
+    /// This file serves as the authoritative blacklist to prevent re-downloading
+    /// deleted episodes, independent of the episode-data.xml limits.
+    /// Must be called within a lock on _deletedLock.
+    /// </summary>
+    private void LoadDeletedEpisodes()
+    {
+        try
+        {
+            if (File.Exists(_deletedEpisodesPath))
+            {
+                var json = File.ReadAllText(_deletedEpisodesPath);
+                _deletedRecords = JsonSerializer.Deserialize<List<DeletedEpisodeRecord>>(json, _jsonOptions)
+                    ?? new List<DeletedEpisodeRecord>();
+                _logger.LogDebug("Loaded {Count} deleted episode records from blacklist", _deletedRecords.Count);
+            }
+            else
+            {
+                _deletedRecords = new List<DeletedEpisodeRecord>();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading deleted episodes from {Path}", _deletedEpisodesPath);
+            _deletedRecords = new List<DeletedEpisodeRecord>();
+        }
+    }
+
+    /// <summary>
+    /// Saves deleted episode records to the JSON blacklist file.
+    /// Must be called within a lock on _deletedLock.
+    /// </summary>
+    private void SaveDeletedEpisodes()
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(_deletedRecords, _jsonOptions);
+            Directory.CreateDirectory(Path.GetDirectoryName(_deletedEpisodesPath)!);
+            File.WriteAllText(_deletedEpisodesPath, json);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving deleted episodes to {Path}", _deletedEpisodesPath);
+        }
+    }
+
+    /// <summary>
+    /// Adds an episode to the deleted episodes blacklist (JSON file).
+    /// This ensures the episode will never be re-downloaded even if it reappears
+    /// in the RSS feed and its record is trimmed from episode-data.xml.
+    /// Thread-safe via _deletedLock.
+    /// </summary>
+    private void AddToDeletedBlacklist(EpisodeRecord record)
+    {
+        lock (_deletedLock)
+        {
+            // Check if already in the blacklist
+            if (_deletedRecords.Any(d => d.EpisodeUrl == record.EpisodeUrl))
+            {
+                _logger.LogDebug("Episode already in deleted blacklist: {Title}", record.Title);
+                return;
+            }
+
+            _deletedRecords.Add(new DeletedEpisodeRecord
+            {
+                FeedUrl = record.FeedUrl,
+                EpisodeUrl = record.EpisodeUrl,
+                Title = record.Title,
+                DeletedDate = DateTime.Now
+            });
+
+            SaveDeletedEpisodes();
+            _logger.LogInformation("Added episode to deleted blacklist: {Title} (total blacklisted: {Count})",
+                record.Title, _deletedRecords.Count);
+        }
+    }
+
+    /// <summary>
+    /// Removes deleted episode records older than 6 months from the JSON blacklist.
+    /// Called after each auto-delete or manual delete operation.
+    /// Thread-safe via _deletedLock.
+    /// </summary>
+    private void CleanupOldDeletedBlacklistEntries()
+    {
+        lock (_deletedLock)
+        {
+            var cutoff = DateTime.Now - DeletedRecordRetention;
+            var before = _deletedRecords.Count;
+            _deletedRecords = _deletedRecords
+                .Where(d => d.DeletedDate >= cutoff)
+                .ToList();
+            var removed = before - _deletedRecords.Count;
+
+            if (removed > 0)
+            {
+                SaveDeletedEpisodes();
+                _logger.LogInformation(
+                    "Cleaned up {Count} expired deleted episode records (older than {Days} months). Remaining: {Remaining}",
+                    removed, DeletedRecordRetention.Days / 30, _deletedRecords.Count);
+            }
+        }
     }
 
     /// <summary>

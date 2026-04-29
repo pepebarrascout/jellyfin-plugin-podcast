@@ -1,41 +1,26 @@
 using System;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Jellyfin.Plugin.Podcasts.Configuration;
-using Jellyfin.Plugin.Podcasts.Model;
-using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Session;
-using MediaBrowser.Model.Session;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Podcasts;
 
 /// <summary>
-/// Background hosted service that runs on a timer to perform scheduled podcast operations.
+/// Background hosted service that monitors podcast playback events for listen detection.
 /// Responsibilities:
-/// - Feed updates at 00:00 server local time (respecting daily/weekly/monthly frequency).
-/// - Auto-playlist generation at 01:00 server local time every day.
-/// - Auto-delete processing at 02:00 server local time every day.
 /// - Playback monitoring to detect when podcast episodes are listened to (for auto-delete tracking).
 ///
-/// The scheduler tracks which tasks have been executed each day to prevent duplicate runs.
-/// It also subscribes to Jellyfin's SessionManager playback events for real-time listen detection.
+/// NOTE: Scheduled feed updates, playlist generation, and auto-delete are now handled by
+/// Jellyfin's built-in Scheduled Tasks system (Dashboard > Scheduled Tasks > Podcasts section).
+/// The user configures the schedule for each task independently from the Jellyfin dashboard.
 /// </summary>
 public class PodcastScheduler : IHostedService, IDisposable
 {
     private readonly ILogger<PodcastScheduler> _logger;
     private readonly ISessionManager _sessionManager;
     private readonly PodcastService _podcastService;
-    private Timer? _timer;
-
-    // Track daily execution state to prevent duplicate runs
-    private int _lastProcessedDay = -1;
-    private bool _feedsUpdatedToday;
-    private bool _playlistGeneratedToday;
-    private bool _autoDeleteProcessedToday;
 
     /// <summary>
     /// Playback tracking dictionary: maps item path to its total runtime in ticks.
@@ -57,32 +42,24 @@ public class PodcastScheduler : IHostedService, IDisposable
     }
 
     /// <summary>
-    /// Starts the scheduler service. Subscribes to playback events for listen detection
-    /// and starts the timer that checks the schedule every 60 seconds.
+    /// Starts the scheduler service. Subscribes to playback events for listen detection.
     /// </summary>
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Podcast scheduler starting...");
+        _logger.LogInformation("Podcast scheduler starting (playback monitoring only)...");
 
         // Subscribe to playback events for auto-delete listen detection
         _sessionManager.PlaybackStart += OnPlaybackStarted;
         _sessionManager.PlaybackStopped += OnPlaybackStopped;
         _sessionManager.PlaybackProgress += OnPlaybackProgress;
 
-        // Check schedule every 60 seconds
-        _timer = new Timer(
-            CheckSchedule,
-            null,
-            TimeSpan.FromSeconds(30), // Initial delay of 30 seconds
-            TimeSpan.FromMinutes(1));
-
-        _logger.LogInformation("Podcast scheduler started. Feed updates at 00:30, playlist at 01:00, auto-delete at 01:30");
+        _logger.LogInformation("Podcast scheduler started. Scheduled tasks available in Dashboard > Scheduled Tasks > Podcasts");
 
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Stops the scheduler service. Unsubscribes from playback events and disposes the timer.
+    /// Stops the scheduler service. Unsubscribes from playback events.
     /// </summary>
     public Task StopAsync(CancellationToken cancellationToken)
     {
@@ -92,9 +69,6 @@ public class PodcastScheduler : IHostedService, IDisposable
         _sessionManager.PlaybackStopped -= OnPlaybackStopped;
         _sessionManager.PlaybackProgress -= OnPlaybackProgress;
 
-        _timer?.Dispose();
-        _timer = null;
-
         return Task.CompletedTask;
     }
 
@@ -103,145 +77,7 @@ public class PodcastScheduler : IHostedService, IDisposable
     /// </summary>
     public void Dispose()
     {
-        _timer?.Dispose();
         GC.SuppressFinalize(this);
-    }
-
-    /// <summary>
-    /// Timer callback that checks if any scheduled tasks need to run based on the current time.
-    /// Runs every 60 seconds and checks the hour/minute for precise scheduling.
-    /// Resets daily flags at midnight to allow tasks to run again on the new day.
-    /// </summary>
-    private void CheckSchedule(object? state)
-    {
-        try
-        {
-            var now = DateTime.Now;
-
-            // Reset daily flags at the start of a new day
-            if (now.Day != _lastProcessedDay)
-            {
-                _lastProcessedDay = now.Day;
-                _feedsUpdatedToday = false;
-                _playlistGeneratedToday = false;
-                _autoDeleteProcessedToday = false;
-            }
-
-            // Feed updates at 00:30
-            if (now.Hour == 0 && now.Minute == 30 && !_feedsUpdatedToday)
-            {
-                _feedsUpdatedToday = true;
-                _ = UpdateFeedsAsync();
-            }
-
-            // Auto-playlist generation at 01:00
-            if (now.Hour == 1 && now.Minute == 0 && !_playlistGeneratedToday)
-            {
-                _playlistGeneratedToday = true;
-                _ = GenerateAutoPlaylistAsync();
-            }
-
-            // Auto-delete processing at 01:30
-            if (now.Hour == 1 && now.Minute == 30 && !_autoDeleteProcessedToday)
-            {
-                _autoDeleteProcessedToday = true;
-                _ = ProcessAutoDeleteAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error in scheduler check");
-        }
-    }
-
-    /// <summary>
-    /// Updates all podcast feeds based on their configured frequency.
-    /// Daily feeds update every day, weekly feeds update on Mondays, monthly feeds update on the 1st.
-    /// Also checks if enough time has passed since the last update based on the frequency setting.
-    /// </summary>
-    private async Task UpdateFeedsAsync()
-    {
-        _logger.LogInformation("Running scheduled feed update...");
-
-        var config = PodcastsPlugin.Instance?.Configuration;
-        if (config == null || config.Feeds.Count == 0)
-        {
-            _logger.LogDebug("No feeds configured, skipping update");
-            return;
-        }
-
-        var now = DateTime.Now;
-        var dayOfWeek = now.DayOfWeek;
-        var dayOfMonth = now.Day;
-
-        foreach (var feed in config.Feeds)
-        {
-            try
-            {
-                // Check if this feed should be updated based on frequency
-                bool shouldUpdate = feed.Frequency switch
-                {
-                    UpdateFrequency.Daily => true,
-                    UpdateFrequency.Weekly => dayOfWeek == DayOfWeek.Monday,
-                    UpdateFrequency.Monthly => dayOfMonth == 1,
-                    _ => false
-                };
-
-                if (!shouldUpdate)
-                {
-                    _logger.LogDebug("Skipping feed {Name} (frequency: {Freq}, today: {Day})",
-                        feed.Name, feed.Frequency, dayOfWeek);
-                    continue;
-                }
-
-                // Additional check: don't update if already updated today
-                if (feed.LastUpdateDate.HasValue &&
-                    feed.LastUpdateDate.Value.Date == now.Date)
-                {
-                    _logger.LogDebug("Feed {Name} already updated today, skipping", feed.Name);
-                    continue;
-                }
-
-                await _podcastService.UpdateFeedAsync(feed);
-
-                // Save the updated configuration with new LastUpdateDate
-                PodcastsPlugin.Instance?.SaveConfiguration();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating feed {Name}", feed.Name);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Generates the daily auto-playlist via the podcast service.
-    /// </summary>
-    private async Task GenerateAutoPlaylistAsync()
-    {
-        try
-        {
-            await _podcastService.GenerateAutoPlaylistAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error generating auto-playlist");
-        }
-    }
-
-    /// <summary>
-    /// Processes auto-delete for listened episodes via the podcast service.
-    /// </summary>
-    private async Task ProcessAutoDeleteAsync()
-    {
-        try
-        {
-            await _podcastService.ProcessAutoDeleteAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error processing auto-delete");
-        }
     }
 
     /// <summary>
