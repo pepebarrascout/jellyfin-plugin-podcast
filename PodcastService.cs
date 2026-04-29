@@ -484,29 +484,21 @@ public class PodcastService
 
                         totalPlayed++;
 
-                        // Check 2-day window only if we have a tracked listen date
+                        // Always enforce the 2-day window.
+                        // If we have a tracked listen date, use it.
+                        // If not (e.g. played from an external client), assume today as the listen date.
                         var record = FindMatchingRecord(feed.FeedUrl, Path.GetFileName(filePath));
-                        DateTime? listenDate = record?.ListenDate;
+                        var listenDate = record?.ListenDate ?? now;
 
-                        bool shouldDelete;
-                        if (listenDate.HasValue)
+                        if (listenDate.AddDays(2) > now)
                         {
-                            shouldDelete = listenDate.Value.AddDays(2) <= now;
-                            if (!shouldDelete)
-                            {
-                                totalSkippedWindow++;
-                                _logger.LogInformation("Episode played but within 2-day window: {Path} (listenDate: {ListenDate})",
-                                    filePath, listenDate);
-                                continue;
-                            }
+                            totalSkippedWindow++;
+                            _logger.LogInformation("Episode played but within 2-day window: {Path} (listenDate: {ListenDate}, delete after: {DeleteAfter})",
+                                filePath, listenDate.ToString("yyyy-MM-dd HH:mm"), listenDate.AddDays(2).ToString("yyyy-MM-dd HH:mm"));
+                            continue;
                         }
-                        else
-                        {
-                            // No listen date from our tracking, but Jellyfin confirms it's played.
-                            // If PlayCount > 0 the user fully completed it; safe to delete.
-                            // If Played=true, Jellyfin marked it as consumed; also safe to delete.
-                            shouldDelete = true;
-                        }
+
+                        bool shouldDelete = true;
 
                         if (shouldDelete)
                         {
