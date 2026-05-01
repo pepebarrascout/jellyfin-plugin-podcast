@@ -314,12 +314,24 @@ public class PodcastService
         var config = PodcastsPlugin.Instance?.Configuration;
         if (config == null || config.Feeds.Count == 0) return;
 
+        var now = DateTime.Now;
+        var skippedByFrequency = 0;
+
         _logger.LogInformation("Background update started for {Count} feeds", config.Feeds.Count);
 
         foreach (var feed in config.Feeds.ToList())
         {
             try
             {
+                // Skip feeds that don't match today's schedule based on their frequency
+                if (!ShouldUpdateByFrequency(feed.Frequency, now))
+                {
+                    skippedByFrequency++;
+                    _logger.LogInformation("Skipping feed '{Name}' (frequency: {Frequency}): not scheduled for today ({Today})",
+                        feed.Name, feed.Frequency, now.ToString("yyyy-MM-dd"));
+                    continue;
+                }
+
                 await UpdateFeedAsync(feed);
                 PodcastsPlugin.Instance?.SaveConfiguration();
             }
@@ -329,7 +341,25 @@ public class PodcastService
             }
         }
 
-        _logger.LogInformation("Background update completed for all feeds");
+        _logger.LogInformation("Background update completed. Updated: {Updated}, Skipped by frequency: {Skipped}",
+            config.Feeds.Count - skippedByFrequency, skippedByFrequency);
+    }
+
+    /// <summary>
+    /// Determines whether a feed should be updated today based on its configured frequency.
+    /// Daily: always updates.
+    /// Weekly: only updates on Mondays (DayOfWeek = 1).
+    /// Monthly: only updates on the 1st day of the month.
+    /// </summary>
+    private static bool ShouldUpdateByFrequency(UpdateFrequency frequency, DateTime now)
+    {
+        return frequency switch
+        {
+            UpdateFrequency.Daily => true,
+            UpdateFrequency.Weekly => now.DayOfWeek == DayOfWeek.Monday,
+            UpdateFrequency.Monthly => now.Day == 1,
+            _ => true
+        };
     }
 
     /// <summary>
