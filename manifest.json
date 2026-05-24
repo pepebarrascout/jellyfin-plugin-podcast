@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/pepebarrascout/jellyfin-plugin-podcast/main/logo.png",
     "versions": [
       {
+        "version": "0.0.2.9",
+        "changelog": "- Fixed: Compatibility with Jellyfin 10.11.9 (IUserManager.Users replaced by GetUsers())\n- Fixed: Playlist generation no longer crashes with MissingMethodException\n- Fixed: Auto-delete uses LastPlayedDate fallback for external clients\n- Fixed: Feed frequency respected by scheduled task (Weekly=Mondays, Monthly=1st)\n- Added: Direct link to scheduled tasks from plugin config page\n- Improved: Frequency labels updated (removed hardcoded times, proper accents)",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/download/v0.0.2.9/jellyfin-plugin-podcasts_0.0.2.9.zip",
+        "checksum": "1E7DD2AEB320E4CF159FFB36161DBC18",
+        "timestamp": "2026-05-25T00:00:00Z"
+      },
+      {
         "version": "0.0.2.8",
         "changelog": "- Fixed: Auto-delete now uses Jellyfin LastPlayedDate as fallback when internal ListenDate is not tracked\n- Fixed: Episodes played from external clients (phone, TV app) now correctly get a 2-day grace period based on LastPlayedDate\n- Fixed: Auto-delete ALWAYS enforces the 2-day window before deleting episodes\n- Fixed: Feed frequency now respected by scheduled task (Weekly = Mondays only, Monthly = 1st of month)\n- Fixed: Auto-delete scans actual podcast directories on disk instead of relying solely on episode-data.xml\n- Fixed: Episodes not found in Jellyfin library are logged and skipped (no silent failures)\n- Added: Direct link to scheduled tasks from plugin config page\n- Improved: All diagnostic messages use Information level (visible in normal logs)\n- Improved: Logs show listen date, scheduled delete date, and frequency skip reason for transparency",
         "targetAbi": "10.11.0.0",

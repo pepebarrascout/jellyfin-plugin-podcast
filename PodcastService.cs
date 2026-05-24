@@ -433,7 +433,7 @@ public class PodcastService
             return;
         }
 
-        var user = _userManager.Users.FirstOrDefault();
+        var user = _userManager.GetUsers().FirstOrDefault();
         if (user == null)
         {
             _logger.LogWarning("No users found in Jellyfin, skipping auto-delete");
@@ -635,7 +635,7 @@ public class PodcastService
             return (0, $"No existe el directorio de podcasts: {basePath}");
         }
 
-        var user = _userManager.Users.FirstOrDefault();
+        var user = _userManager.GetUsers().FirstOrDefault();
         if (user == null)
         {
             return (0, "No hay usuarios en Jellyfin.");
@@ -894,7 +894,7 @@ public class PodcastService
         }
 
         // Get owner user (first user, typically the admin)
-        var user = _userManager.Users.FirstOrDefault();
+        var user = _userManager.GetUsers().FirstOrDefault();
         if (user == null)
         {
             _logger.LogWarning("No users found in Jellyfin, cannot create playlist");

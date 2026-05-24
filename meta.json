@@ -5,9 +5,9 @@
   "overview": "Subscribe to podcast RSS feeds, automatically download new episodes, manage auto-deletion of listened content, and generate a daily auto-playlist of unlistened episodes.",
   "owner": "PepeBarrascout",
   "category": "Music",
-  "version": "0.0.2.8",
-  "changelog": "- Fixed: Auto-delete now uses Jellyfin LastPlayedDate as fallback when internal ListenDate is not tracked\n- Fixed: Episodes played from external clients (phone, TV app) now correctly get a 2-day grace period based on LastPlayedDate\n- Fixed: Auto-delete ALWAYS enforces the 2-day window before deleting episodes\n- Fixed: Auto-delete scans actual podcast directories on disk instead of relying solely on episode-data.xml\n- Fixed: Episodes not found in Jellyfin library are logged and skipped (no silent failures)\n- Improved: All diagnostic messages use Information level (visible in normal logs)\n- Improved: Logs show listen date and scheduled delete date for transparency",
+  "version": "0.0.2.9",
+  "changelog": "- Fixed: Compatibility with Jellyfin 10.11.9 (IUserManager.Users replaced by GetUsers())\n- Fixed: Playlist generation no longer crashes with MissingMethodException\n- Fixed: Auto-delete now uses Jellyfin LastPlayedDate as fallback for external clients\n- Fixed: Feed frequency respected by scheduled task (Weekly=Mondays, Monthly=1st)\n- Added: Direct link to scheduled tasks from plugin config page\n- Improved: Frequency labels updated (removed hardcoded times, added proper accents)",
   "targetAbi": "10.11.0.0",
-  "timestamp": "2026-04-30T20:30:00Z",
+  "timestamp": "2026-05-25T00:00:00Z",
   "imagePath": "logo.png"
 }
