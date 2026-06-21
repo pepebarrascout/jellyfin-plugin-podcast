@@ -5,8 +5,8 @@
   "overview": "Subscribe to podcast RSS feeds, automatically download new episodes, manage auto-deletion of listened content, and generate a daily auto-playlist of unlistened episodes.",
   "owner": "PepeBarrascout",
   "category": "Music",
-  "version": "0.0.3.0",
-  "changelog": "- Fixed: Playlist image now refreshes on every generation (delete + recreate instead of in-place update)\n- Fixed: Compatibility with Jellyfin 10.11.9 (IUserManager.GetUsers())\n- Fixed: Auto-delete uses LastPlayedDate fallback for external clients\n- Fixed: Feed frequency respected by scheduled task (Weekly=Mondays, Monthly=1st)\n- Added: Direct link to scheduled tasks from plugin config page",
+  "version": "0.0.3.1",
+  "changelog": "- Fixed: Pinned Jellyfin package versions to 10.11.10 for compatibility with Jellyfin 10.11.10\n- Fixed: Playlist image now refreshes on every generation (delete + recreate instead of in-place update)\n- Fixed: Compatibility with Jellyfin 10.11.9 (IUserManager.GetUsers())\n- Fixed: Auto-delete uses LastPlayedDate fallback for external clients\n- Fixed: Feed frequency respected by scheduled task (Weekly=Mondays, Monthly=1st)\n- Added: Direct link to scheduled tasks from plugin config page",
   "targetAbi": "10.11.0.0",
   "timestamp": "2026-05-25T01:00:00Z",
   "imagePath": "logo.png"
