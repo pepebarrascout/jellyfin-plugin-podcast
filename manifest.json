@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/pepebarrascout/jellyfin-plugin-podcast/main/logo.png",
     "versions": [
       {
+        "version": "0.0.3.4",
+        "changelog": "- Fixed: ROOT CAUSE of duplicate playlists — added SemaphoreSlim lock to prevent concurrent playlist generation (scheduler + manual trigger race condition)\n- Fixed: Playlist GUID now persisted to plain text file (playlist_id.txt) instead of PluginConfiguration XML (which was cached and not persisted immediately)\n- Fixed: Automatic migration from PluginConfiguration.PlaylistId to playlist_id.txt on first run\n- Fixed: Automatic cleanup of legacy duplicate playlists (Podcasts1, Podcasts11, etc.)\n- Pattern: Same architecture as jellyfin-smartlists-plugin — find by stored GUID, update in-place, never delete/recreate",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/download/v0.0.3.4/jellyfin-plugin-podcasts_0.0.3.4.zip",
+        "checksum": "A32A9815F7F37BCEA07E56DA424BFA97",
+        "timestamp": "2026-07-08T17:57:00Z"
+      },
+      {
         "version": "0.0.3.3",
         "changelog": "- Fixed: Playlist image and RunningTime now update correctly on every generation (delete+recreate with confirmed deletion)\n- Fixed: No more duplicate playlists (Podcasts1, Podcasts11...) - polls DB until old playlist is confirmed deleted\n- Fixed: Duplicates cleaned up BEFORE main deletion to free all variant names\n- Fixed: Pinned Jellyfin packages to 10.11.11 for compatibility with latest stable\n- Fixed: Compatibility with Jellyfin 10.11.9+ (IUserManager.GetUsers())\n- Fixed: Auto-delete uses LastPlayedDate fallback for external clients\n- Fixed: Feed frequency respected by scheduled task (Weekly=Mondays, Monthly=1st)",
         "targetAbi": "10.11.0.0",

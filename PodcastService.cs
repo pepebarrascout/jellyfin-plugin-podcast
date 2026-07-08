@@ -43,8 +43,10 @@ public class PodcastService
     private readonly string _deletedEpisodesPath;
     private readonly object _dataLock = new();
     private readonly object _deletedLock = new();
+    private readonly SemaphoreSlim _playlistLock = new(1, 1);
     private List<EpisodeRecord> _episodeRecords = new();
     private List<DeletedEpisodeRecord> _deletedRecords = new();
+    private readonly string _playlistIdPath;
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         WriteIndented = true,
@@ -97,6 +99,7 @@ public class PodcastService
         _pluginDataPath = pluginDataPath;
         _episodeDataPath = Path.Combine(pluginDataPath, "episode-data.xml");
         _deletedEpisodesPath = Path.Combine(pluginDataPath, "deleted-episodes.json");
+        _playlistIdPath = Path.Combine(pluginDataPath, "playlist_id.txt");
 
         Directory.CreateDirectory(_pluginDataPath);
 
@@ -874,116 +877,129 @@ public class PodcastService
     /// Uses Jellyfin's IUserDataManager (PlayCount/Played) as the primary method to determine
     /// if an episode has been played, with fallback to the internal IsListened flag.
     /// Episodes are ordered chronologically by their publication date (oldest first).
-    /// Uses IPlaylistManager to create a proper database-backed playlist in Jellyfin.
-    /// The playlist GUID is stored in PluginConfiguration.PlaylistId for reliable lookup by ID
-    /// (avoiding name-based search that causes duplicates). When the playlist exists, it is
-    /// UPDATED in-place (LinkedChildren) and IProviderManager.RefreshSingleItem is called to
-    /// regenerate the composite cover image and RunningTime metadata. This is the same pattern
-    /// used by jellyfin-smartlists-plugin.
+    /// 
+    /// CRITICAL: This method uses a SemaphoreSlim (_playlistLock) to prevent concurrent executions
+    /// from creating duplicate playlists. The playlist GUID is persisted to a plain text file
+    /// (playlist_id.txt) instead of PluginConfiguration, because BasePlugin.SaveConfiguration()
+    /// may cache the config and not persist immediately, causing race conditions when multiple
+    /// callers (scheduler, API, scheduled task) invoke this method.
+    /// 
+    /// Pattern follows jellyfin-smartlists-plugin: find by stored GUID, update in-place,
+    /// never delete and recreate.
     /// </summary>
     public async Task GenerateAutoPlaylistAsync()
     {
-        _logger.LogInformation("Generating auto-playlist (Podcasts)...");
-
-        var config = PodcastsPlugin.Instance?.Configuration;
-        if (config == null) return;
-
-        var playlistFeeds = config.Feeds
-            .Where(f => f.IncludeInAutoPlaylist)
-            .Select(f => f.FeedUrl)
-            .ToHashSet();
-
-        if (playlistFeeds.Count == 0)
+        // Prevent concurrent playlist generation - this is the ROOT CAUSE of duplicates.
+        // When scheduler finishes updating feeds and triggers playlist generation,
+        // AND the user clicks "Generate" at nearly the same time, two playlists get created.
+        if (!await _playlistLock.WaitAsync(TimeSpan.FromSeconds(30)))
         {
-            _logger.LogDebug("No feeds configured for auto-playlist");
+            _logger.LogWarning("Playlist generation skipped - another generation is already in progress");
             return;
-        }
-
-        // Get owner user (first user, typically the admin)
-        var user = _userManager.GetUsers().FirstOrDefault();
-        if (user == null)
-        {
-            _logger.LogWarning("No users found in Jellyfin, cannot create playlist");
-            return;
-        }
-
-        var basePath = GetPodcastBasePath();
-        var itemIds = new List<Guid>();
-        var itemPaths = new Dictionary<Guid, string>();
-        var skippedCount = 0;
-        var userDataSkippedCount = 0;
-
-        List<EpisodeRecord> playlistEpisodes;
-
-        lock (_dataLock)
-        {
-            LoadEpisodeData();
-            playlistEpisodes = _episodeRecords
-                .Where(e => playlistFeeds.Contains(e.FeedUrl)
-                    && !e.IsDeleted
-                    && !string.IsNullOrEmpty(e.LocalFileName))
-                .OrderBy(e => e.PublishedDate)
-                .ToList();
-        }
-
-        // Resolve episodes to Jellyfin library item IDs and check UserData
-        foreach (var episode in playlistEpisodes)
-        {
-            try
-            {
-                var podcastName = GetPodcastNameForFeed(episode.FeedUrl);
-                var fullPath = Path.Combine(basePath, podcastName, episode.LocalFileName);
-
-                if (!File.Exists(fullPath))
-                {
-                    _logger.LogDebug("Episode file not found on disk: {Path}", fullPath);
-                    skippedCount++;
-                    continue;
-                }
-
-                var item = _libraryManager.FindByPath(fullPath, false);
-                if (item == null)
-                {
-                    _logger.LogWarning("Episode file exists but not found in Jellyfin library: {Path}", fullPath);
-                    skippedCount++;
-                    continue;
-                }
-
-                // Check UserData: only include episodes that have NEVER been played
-                try
-                {
-                    var userData = _userDataManager.GetUserData(user, item);
-                    if (userData != null && (userData.PlayCount > 0 || userData.Played))
-                    {
-                        _logger.LogDebug("Excluding played episode from playlist: {Title} (PlayCount={PlayCount}, Played={Played})",
-                            episode.Title, userData.PlayCount, userData.Played);
-                        userDataSkippedCount++;
-                        continue;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug("Could not check UserData for {Title}: {Error}, using internal flag", episode.Title, ex.Message);
-                    // Fallback to internal IsListened flag
-                    if (episode.IsListened)
-                    {
-                        userDataSkippedCount++;
-                        continue;
-                    }
-                }
-
-                itemIds.Add(item.Id);
-                itemPaths[item.Id] = fullPath;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug("Could not resolve episode {Title}: {Error}", episode.Title, ex.Message);
-                skippedCount++;
-            }
         }
 
         try
         {
+            _logger.LogInformation("Generating auto-playlist (Podcasts)...");
+
+            var config = PodcastsPlugin.Instance?.Configuration;
+            if (config == null) return;
+
+            var playlistFeeds = config.Feeds
+                .Where(f => f.IncludeInAutoPlaylist)
+                .Select(f => f.FeedUrl)
+                .ToHashSet();
+
+            if (playlistFeeds.Count == 0)
+            {
+                _logger.LogDebug("No feeds configured for auto-playlist");
+                return;
+            }
+
+            // Get owner user (first user, typically the admin)
+            var user = _userManager.GetUsers().FirstOrDefault();
+            if (user == null)
+            {
+                _logger.LogWarning("No users found in Jellyfin, cannot create playlist");
+                return;
+            }
+
+            var basePath = GetPodcastBasePath();
+            var itemIds = new List<Guid>();
+            var itemPaths = new Dictionary<Guid, string>();
+            var skippedCount = 0;
+            var userDataSkippedCount = 0;
+
+            List<EpisodeRecord> playlistEpisodes;
+
+            lock (_dataLock)
+            {
+                LoadEpisodeData();
+                playlistEpisodes = _episodeRecords
+                    .Where(e => playlistFeeds.Contains(e.FeedUrl)
+                        && !e.IsDeleted
+                        && !string.IsNullOrEmpty(e.LocalFileName))
+                    .OrderBy(e => e.PublishedDate)
+                    .ToList();
+            }
+
+            // Resolve episodes to Jellyfin library item IDs and check UserData
+            foreach (var episode in playlistEpisodes)
+            {
+                try
+                {
+                    var podcastName = GetPodcastNameForFeed(episode.FeedUrl);
+                    var fullPath = Path.Combine(basePath, podcastName, episode.LocalFileName);
+
+                    if (!File.Exists(fullPath))
+                    {
+                        _logger.LogDebug("Episode file not found on disk: {Path}", fullPath);
+                        skippedCount++;
+                        continue;
+                    }
+
+                    var item = _libraryManager.FindByPath(fullPath, false);
+                    if (item == null)
+                    {
+                        _logger.LogWarning("Episode file exists but not found in Jellyfin library: {Path}", fullPath);
+                        skippedCount++;
+                        continue;
+                    }
+
+                    // Check UserData: only include episodes that have NEVER been played
+                    try
+                    {
+                        var userData = _userDataManager.GetUserData(user, item);
+                        if (userData != null && (userData.PlayCount > 0 || userData.Played))
+                        {
+                            _logger.LogDebug("Excluding played episode from playlist: {Title} (PlayCount={PlayCount}, Played={Played})",
+                                episode.Title, userData.PlayCount, userData.Played);
+                            userDataSkippedCount++;
+                            continue;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug("Could not check UserData for {Title}: {Error}, using internal flag", episode.Title, ex.Message);
+                        // Fallback to internal IsListened flag
+                        if (episode.IsListened)
+                        {
+                            _logger.LogDebug("Excluding listened episode from playlist (internal flag): {Title}", episode.Title);
+                            userDataSkippedCount++;
+                            continue;
+                        }
+                    }
+
+                    itemIds.Add(item.Id);
+                    itemPaths[item.Id] = fullPath;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug("Could not resolve episode {Title}: {Error}", episode.Title, ex.Message);
+                    skippedCount++;
+                }
+            }
+
             if (itemIds.Count == 0)
             {
                 _logger.LogInformation("No unplayed episodes found for playlist (skipped {Skipped} unresolved, {Played} played via UserData)",
@@ -996,27 +1012,31 @@ public class PodcastService
                 .Select(id => new LinkedChild { ItemId = id, Path = itemPaths[id] })
                 .ToArray();
 
-            // STEP 1: Find existing playlist by stored GUID (same pattern as jellyfin-smartlists-plugin).
-            // This is the KEY to avoiding duplicates — never search by name.
+            // STEP 1: Read playlist GUID from file (NOT from PluginConfiguration - that can be stale/cached).
+            // Migrate from PluginConfiguration.PlaylistId on first run if file doesn't exist yet.
+            var storedGuid = ReadPlaylistGuidFromFile();
+
+            // STEP 2: Find existing playlist by stored GUID (same pattern as jellyfin-smartlists-plugin).
+            // This is the KEY to avoiding duplicates - never search by name.
             Playlist? existingPlaylist = null;
-            if (!string.IsNullOrEmpty(config.PlaylistId) && Guid.TryParse(config.PlaylistId, out var playlistGuid))
+
+            if (storedGuid.HasValue)
             {
-                if (_libraryManager.GetItemById(playlistGuid) is Playlist playlistById)
+                if (_libraryManager.GetItemById(storedGuid.Value) is Playlist playlistById)
                 {
                     existingPlaylist = playlistById;
-                    _logger.LogInformation("Found existing playlist by GUID: {Guid} (Name: '{Name}')", playlistGuid, existingPlaylist.Name);
+                    _logger.LogInformation("Found existing playlist by GUID: {Guid} (Name: '{Name}')", storedGuid.Value, existingPlaylist.Name);
                 }
                 else
                 {
-                    _logger.LogInformation("Playlist GUID {Guid} not found in library (may have been manually deleted)", playlistGuid);
-                    config.PlaylistId = null;
-                    PodcastsPlugin.Instance?.SaveConfiguration();
+                    _logger.LogInformation("Playlist GUID {Guid} not found in library (may have been manually deleted). Will create new.", storedGuid.Value);
+                    DeletePlaylistGuidFile();
                 }
             }
 
             if (existingPlaylist != null)
             {
-                // STEP 2: Update existing playlist in-place (LinkedChildren only).
+                // STEP 3: Update existing playlist in-place (LinkedChildren only).
                 _logger.LogInformation(
                     "Updating 'Podcasts' playlist in-place (ID: {Id}) with {Count} episodes",
                     existingPlaylist.Id, linkedChildren.Length);
@@ -1024,13 +1044,10 @@ public class PodcastService
                 existingPlaylist.LinkedChildren = linkedChildren;
                 await existingPlaylist.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, CancellationToken.None);
 
-                // STEP 3: Refresh metadata to regenerate cover image and RunningTime.
-                // Uses the same technique as jellyfin-smartlists-plugin:
-                // _providerManager.RefreshSingleItem with ReplaceAllMetadata/ReplaceAllImages.
+                // STEP 4: Refresh metadata to regenerate cover image and RunningTime.
                 try
                 {
 #pragma warning disable SYSLIB0050
-                    // Create MetadataRefreshOptions without calling the IDirectoryService constructor
                     var refreshOptions = (MetadataRefreshOptions)System.Runtime.Serialization.FormatterServices.GetUninitializedObject(typeof(MetadataRefreshOptions))!;
                     refreshOptions.MetadataRefreshMode = MetadataRefreshMode.FullRefresh;
                     refreshOptions.ImageRefreshMode = MetadataRefreshMode.FullRefresh;
@@ -1051,7 +1068,7 @@ public class PodcastService
             }
             else
             {
-                // STEP 4: Create new playlist (only when no existing one found by GUID).
+                // STEP 5: Create new playlist (only when no existing one found by GUID).
                 _logger.LogInformation("Creating new 'Podcasts' playlist with {Count} episodes", itemIds.Count);
 
                 var request = new PlaylistCreationRequest
@@ -1086,10 +1103,14 @@ public class PodcastService
                         _logger.LogWarning(refreshEx, "Could not refresh new playlist metadata: {Message}", refreshEx.Message);
                     }
 
-                    // Store the playlist GUID for future lookups
+                    // CRITICAL: Persist the GUID to a plain text file IMMEDIATELY.
+                    // Do NOT rely on PluginConfiguration.SaveConfiguration() which may be cached.
+                    WritePlaylistGuidToFile(newPlaylist.Id);
+                    _logger.LogInformation("Saved playlist GUID to file: {Guid}", newPlaylist.Id.ToString("N"));
+
+                    // Also save to PluginConfiguration for backwards compatibility / visibility
                     config.PlaylistId = newPlaylist.Id.ToString("N");
                     PodcastsPlugin.Instance?.SaveConfiguration();
-                    _logger.LogInformation("Saved playlist GUID: {Guid}", config.PlaylistId);
                 }
 
                 _logger.LogInformation(
@@ -1103,6 +1124,85 @@ public class PodcastService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to generate auto-playlist");
+        }
+        finally
+        {
+            _playlistLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Reads the stored playlist GUID from playlist_id.txt.
+    /// On first run (file doesn't exist), migrates from PluginConfiguration.PlaylistId.
+    /// Returns null if no valid GUID is stored.
+    /// </summary>
+    private Guid? ReadPlaylistGuidFromFile()
+    {
+        try
+        {
+            if (File.Exists(_playlistIdPath))
+            {
+                var content = File.ReadAllText(_playlistIdPath).Trim();
+                if (Guid.TryParse(content, out var guid))
+                {
+                    _logger.LogDebug("Read playlist GUID from file: {Guid}", content);
+                    return guid;
+                }
+                _logger.LogWarning("Invalid GUID in playlist_id.txt: '{Content}'", content);
+                return null;
+            }
+
+            // Migrate from PluginConfiguration (old approach, may be stale but better than nothing)
+            var configPlaylistId = PodcastsPlugin.Instance?.Configuration?.PlaylistId;
+            if (!string.IsNullOrEmpty(configPlaylistId) && Guid.TryParse(configPlaylistId, out var migratedGuid))
+            {
+                _logger.LogInformation("Migrating playlist GUID from PluginConfiguration to playlist_id.txt: {Guid}", configPlaylistId);
+                WritePlaylistGuidToFile(migratedGuid);
+                return migratedGuid;
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error reading playlist GUID from file");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Writes the playlist GUID to playlist_id.txt immediately (no caching).
+    /// This is the reliable persistence mechanism - plain text file, synchronous write.
+    /// </summary>
+    private void WritePlaylistGuidToFile(Guid guid)
+    {
+        try
+        {
+            File.WriteAllText(_playlistIdPath, guid.ToString("N"));
+            _logger.LogDebug("Wrote playlist GUID to file: {Guid}", guid.ToString("N"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CRITICAL: Failed to write playlist GUID to file. Duplicate playlists may occur on next run.");
+        }
+    }
+
+    /// <summary>
+    /// Deletes the playlist_id.txt file (called when the stored GUID no longer exists in the library).
+    /// </summary>
+    private void DeletePlaylistGuidFile()
+    {
+        try
+        {
+            if (File.Exists(_playlistIdPath))
+            {
+                File.Delete(_playlistIdPath);
+                _logger.LogInformation("Deleted playlist_id.txt (stored GUID was invalid)");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not delete playlist_id.txt");
         }
     }
 

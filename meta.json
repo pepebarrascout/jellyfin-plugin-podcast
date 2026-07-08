@@ -5,9 +5,9 @@
   "overview": "Subscribe to podcast RSS feeds, automatically download new episodes, manage auto-deletion of listened content, and generate a daily auto-playlist of unlistened episodes.",
   "owner": "PepeBarrascout",
   "category": "Music",
-  "version": "0.0.3.3",
-  "changelog": "- Fixed: Playlist now uses GUID-based lookup (stored in config) — no more duplicates (Podcasts1, Podcasts11...)\n- Fixed: Playlist image and RunningTime refresh via IProviderManager.RefreshSingleItem (same pattern as jellyfin-smartlists-plugin)\n- Fixed: Compatible with Jellyfin 10.11.11 (IUserManager.GetUsers())\n- Fixed: Auto-delete uses LastPlayedDate fallback for external clients\n- Fixed: Feed frequency respected by scheduled task (Weekly=Mondays, Monthly=1st)",
+  "version": "0.0.3.4",
+  "changelog": "- Fixed: ROOT CAUSE of duplicate playlists — added SemaphoreSlim lock to prevent concurrent playlist generation (scheduler + manual trigger race condition)\n- Fixed: Playlist GUID now persisted to plain text file (playlist_id.txt) instead of PluginConfiguration XML (which was cached and not persisted immediately)\n- Fixed: Automatic migration from PluginConfiguration.PlaylistId to playlist_id.txt on first run\n- Fixed: Automatic cleanup of legacy duplicate playlists (Podcasts1, Podcasts11, etc.)\n- Pattern: Same architecture as jellyfin-smartlists-plugin — find by stored GUID, update in-place, never delete/recreate",
   "targetAbi": "10.11.0.0",
-  "timestamp": "2026-05-25T01:00:00Z",
+  "timestamp": "2026-07-08T17:57:00Z",
   "imagePath": "logo.png"
 }
