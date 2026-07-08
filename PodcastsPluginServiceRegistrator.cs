@@ -48,11 +48,12 @@ public class PodcastsPluginServiceRegistrator : IPluginServiceRegistrator
             var playlistManager = sp.GetRequiredService<MediaBrowser.Controller.Playlists.IPlaylistManager>();
             var userManager = sp.GetRequiredService<MediaBrowser.Controller.Library.IUserManager>();
             var userDataManager = sp.GetRequiredService<MediaBrowser.Controller.Library.IUserDataManager>();
+            var providerManager = sp.GetRequiredService<MediaBrowser.Controller.Providers.IProviderManager>();
 
             // Plugin data is stored in a dedicated subfolder within the plugin config directory
             var pluginDataPath = Path.Combine(appPaths.DataPath, "plugins", "podcasts");
 
-            return new PodcastService(logger, httpClientFactory, libraryManager, playlistManager, userManager, userDataManager, pluginDataPath);
+            return new PodcastService(logger, httpClientFactory, libraryManager, playlistManager, userManager, userDataManager, providerManager, pluginDataPath);
         });
 
         // Register PodcastScheduler as a hosted service for playback monitoring.

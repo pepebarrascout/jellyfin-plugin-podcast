@@ -6,7 +6,7 @@
   "owner": "PepeBarrascout",
   "category": "Music",
   "version": "0.0.3.3",
-  "changelog": "- Fixed: Playlist image and RunningTime now update correctly on every generation (delete+recreate with confirmed deletion)\n- Fixed: No more duplicate playlists (Podcasts1, Podcasts11...) - polls DB until old playlist is confirmed deleted\n- Fixed: Duplicates cleaned up BEFORE main deletion to free all variant names\n- Fixed: Pinned Jellyfin packages to 10.11.11 for compatibility with latest stable\n- Fixed: Compatibility with Jellyfin 10.11.9+ (IUserManager.GetUsers())\n- Fixed: Auto-delete uses LastPlayedDate fallback for external clients\n- Fixed: Feed frequency respected by scheduled task (Weekly=Mondays, Monthly=1st)",
+  "changelog": "- Fixed: Playlist now uses GUID-based lookup (stored in config) — no more duplicates (Podcasts1, Podcasts11...)\n- Fixed: Playlist image and RunningTime refresh via IProviderManager.RefreshSingleItem (same pattern as jellyfin-smartlists-plugin)\n- Fixed: Compatible with Jellyfin 10.11.11 (IUserManager.GetUsers())\n- Fixed: Auto-delete uses LastPlayedDate fallback for external clients\n- Fixed: Feed frequency respected by scheduled task (Weekly=Mondays, Monthly=1st)",
   "targetAbi": "10.11.0.0",
   "timestamp": "2026-05-25T01:00:00Z",
   "imagePath": "logo.png"
