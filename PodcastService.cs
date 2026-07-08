@@ -871,11 +871,11 @@ public class PodcastService
     /// if an episode has been played, with fallback to the internal IsListened flag.
     /// Episodes are ordered chronologically by their publication date (oldest first).
     /// Uses IPlaylistManager to create a proper database-backed playlist in Jellyfin.
-    /// If a playlist named "Podcasts" already exists, it is UPDATED IN-PLACE (LinkedChildren)
-    /// to avoid duplicate name issues (Podcasts1, Podcasts11, etc.). The primary image is
-    /// removed before saving so Jellyfin auto-generates a fresh composite cover from current items.
-    /// Duplicate playlists (Podcasts1, Podcasts11, etc.) are cleaned up after each generation.
-    /// This approach follows the jellyfin-smartlists-plugin pattern for reliable playlist management.
+    /// The playlist is DELETE+RECREATED (not updated in-place) because in-place LinkedChildren
+    /// updates do NOT recalculate RunningTime or regenerate the composite cover image.
+    /// Before deletion, all duplicate playlists (Podcasts1, Podcasts11, etc.) are cleaned up.
+    /// After calling DeleteItem, the code polls until the playlist is confirmed gone from the
+    /// database (up to 5 seconds) before creating the new one, preventing name collisions.
     /// </summary>
     public async Task GenerateAutoPlaylistAsync()
     {
@@ -992,72 +992,79 @@ public class PodcastService
                 .Select(id => new LinkedChild { ItemId = id, Path = itemPaths[id] })
                 .ToArray();
 
+            // STEP 1: Clean up ALL "Podcasts*" duplicates FIRST (Podcasts1, Podcasts11, etc.)
+            // This must happen before the main delete to free all variant names.
+            await CleanupDuplicatePlaylistsAsync(user.Id);
+
+            // STEP 2: Find and delete the exact "Podcasts" playlist.
+            // Delete+recreate is required because in-place LinkedChildren updates do NOT
+            // recalculate RunningTime or regenerate the composite cover image in Jellyfin 10.11.11.
             var existingPlaylist = FindPlaylistByName(user.Id, "Podcasts");
 
             if (existingPlaylist != null)
             {
-                // Update existing playlist in-place to avoid duplicate name issues.
-                // Clear existing children first, then set new ones.
                 _logger.LogInformation(
-                    "Updating existing 'Podcasts' playlist in-place (ID: {Id}) with {Count} episodes",
-                    existingPlaylist.Id, linkedChildren.Length);
+                    "Found existing 'Podcasts' playlist (ID: {Id}), deleting before recreate",
+                    existingPlaylist.Id);
 
-                existingPlaylist.LinkedChildren = Array.Empty<LinkedChild>();
-                await existingPlaylist.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, CancellationToken.None);
-
-                existingPlaylist.LinkedChildren = linkedChildren;
-                await existingPlaylist.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, CancellationToken.None);
-
-                // Force image regeneration: remove the primary image so Jellyfin
-                // auto-generates a new composite from the current episode covers.
                 try
                 {
-                    var imageInfo = existingPlaylist.GetImageInfo(ImageType.Primary, 0);
-                    if (imageInfo != null)
+                    _libraryManager.DeleteItem(existingPlaylist, new DeleteOptions { DeleteFileLocation = false }, true);
+                    _logger.LogInformation("DeleteItem called for 'Podcasts' playlist (ID: {Id})", existingPlaylist.Id);
+                }
+                catch (Exception delEx)
+                {
+                    _logger.LogWarning(delEx, "Could not delete old 'Podcasts' playlist, attempting to create anyway");
+                }
+
+                // STEP 3: Wait until the playlist is confirmed GONE from the database.
+                // A fixed delay is unreliable — we poll until FindPlaylistByName returns null.
+                var maxWait = TimeSpan.FromSeconds(5);
+                var waitStart = DateTime.UtcNow;
+                while (DateTime.UtcNow - waitStart < maxWait)
+                {
+                    await Task.Delay(300);
+                    if (FindPlaylistByName(user.Id, "Podcasts") == null)
                     {
-                        existingPlaylist.RemoveImage(imageInfo);
-                        _logger.LogInformation("Removed old playlist image, Jellyfin will regenerate composite from current episodes");
-                        await existingPlaylist.UpdateToRepositoryAsync(ItemUpdateType.ImageUpdate, CancellationToken.None);
+                        _logger.LogInformation("Confirmed 'Podcasts' playlist is deleted (waited {Ms}ms)",
+                            (int)(DateTime.UtcNow - waitStart).TotalMilliseconds);
+                        break;
                     }
                 }
-                catch (Exception imgEx)
-                {
-                    _logger.LogDebug(imgEx, "Could not remove playlist image for regeneration (non-critical)");
-                }
 
-                _logger.LogInformation(
-                    "Playlist 'Podcasts' UPDATED with {Count} episodes (skipped {Skipped} unresolved, {Played} played). Playlist ID: {PlaylistId}",
-                    linkedChildren.Length, skippedCount, userDataSkippedCount, existingPlaylist.Id);
+                // Final check — if still exists after max wait, abort to avoid creating duplicates.
+                if (FindPlaylistByName(user.Id, "Podcasts") != null)
+                {
+                    _logger.LogWarning("Podcasts playlist still exists after {Sec}s wait, aborting creation to avoid duplicates",
+                        maxWait.TotalSeconds);
+                    return;
+                }
             }
-            else
+
+            // STEP 4: Create fresh playlist — Jellyfin computes RunningTime and generates
+            // the composite cover image automatically from the new items.
+            _logger.LogInformation("Creating new 'Podcasts' playlist with {Count} episodes", itemIds.Count);
+
+            var request = new PlaylistCreationRequest
             {
-                // No existing playlist found — create a fresh one.
-                _logger.LogInformation("Creating new 'Podcasts' playlist with {Count} episodes", itemIds.Count);
+                Name = "Podcasts",
+                ItemIdList = itemIds,
+                UserId = user.Id,
+                MediaType = Jellyfin.Data.Enums.MediaType.Audio
+            };
 
-                var request = new PlaylistCreationRequest
-                {
-                    Name = "Podcasts",
-                    ItemIdList = itemIds,
-                    UserId = user.Id,
-                    MediaType = Jellyfin.Data.Enums.MediaType.Audio
-                };
+            var result = await _playlistManager.CreatePlaylist(request);
 
-                var result = await _playlistManager.CreatePlaylist(request);
-
-                // Set LinkedChildren for reliable item references
-                if (_libraryManager.GetItemById(new Guid(result.Id)) is Playlist newPlaylist)
-                {
-                    newPlaylist.LinkedChildren = linkedChildren;
-                    await newPlaylist.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, CancellationToken.None);
-                }
-
-                _logger.LogInformation(
-                    "Playlist 'Podcasts' CREATED with {Count} episodes (skipped {Skipped} unresolved, {Played} played). Playlist ID: {PlaylistId}",
-                    linkedChildren.Length, skippedCount, userDataSkippedCount, result.Id);
+            // Set LinkedChildren for reliable item references
+            if (_libraryManager.GetItemById(new Guid(result.Id)) is Playlist newPlaylist)
+            {
+                newPlaylist.LinkedChildren = linkedChildren;
+                await newPlaylist.UpdateToRepositoryAsync(ItemUpdateType.MetadataEdit, CancellationToken.None);
             }
 
-            // Clean up any leftover duplicate playlists (Podcasts1, Podcasts11, etc.)
-            await CleanupDuplicatePlaylistsAsync(user.Id);
+            _logger.LogInformation(
+                "Playlist 'Podcasts' CREATED with {Count} episodes (skipped {Skipped} unresolved, {Played} played). Playlist ID: {PlaylistId}",
+                linkedChildren.Length, skippedCount, userDataSkippedCount, result.Id);
         }
         catch (Exception ex)
         {
