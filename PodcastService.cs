@@ -872,6 +872,35 @@ public class PodcastService
     }
 
     /// <summary>
+    /// Triggers Jellyfin's library scan so it detects new podcast episode files
+    /// downloaded by the plugin and adds them to the database.
+    /// Uses ILibraryManager.ValidateMediaLibrary with a Progress reporter.
+    /// </summary>
+    public async Task ScanPodcastLibraryAsync(IProgress<double>? progress = null)
+    {
+        var podcastPath = GetPodcastBasePath();
+        _logger.LogInformation("Scanning podcast library folder: {Path}", podcastPath);
+
+        try
+        {
+            progress?.Report(10);
+
+            await _libraryManager.ValidateMediaLibrary(new Progress<double>(p =>
+            {
+                _logger.LogDebug("Library scan progress: {Progress}%", p);
+            }), CancellationToken.None);
+
+            progress?.Report(100);
+            _logger.LogInformation("Library scan completed successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during library scan");
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Generates a playlist named "Podcasts" containing all episodes that have NEVER been played
     /// from podcast feeds configured with IncludeInAutoPlaylist = true.
     /// Uses Jellyfin's IUserDataManager (PlayCount/Played) as the primary method to determine

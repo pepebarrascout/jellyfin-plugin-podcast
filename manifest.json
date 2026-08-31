@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/pepebarrascout/jellyfin-plugin-podcast/main/logo.png",
     "versions": [
       {
+        "version": "0.0.3.5",
+        "changelog": "- NEW: 4th scheduled task 'Escanear biblioteca de podcasts' - forces Jellyfin to scan the podcast folder for new files and add them to the database\n- Recommended: run this task after 'Update feeds' so new episodes appear in the library immediately\n- Uses ILibraryManager.ValidateMediaLibrary for a full library scan",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/download/v0.0.3.5/jellyfin-plugin-podcasts_0.0.3.5.zip",
+        "checksum": "EB3012C5D95F6FF71C6C928ACEA9E2FE",
+        "timestamp": "2026-08-31T18:47:28Z"
+      },
+      {
         "version": "0.0.3.4",
         "changelog": "- Fixed: ROOT CAUSE of duplicate playlists — added SemaphoreSlim lock to prevent concurrent playlist generation (scheduler + manual trigger race condition)\n- Fixed: Playlist GUID now persisted to plain text file (playlist_id.txt) instead of PluginConfiguration XML (which was cached and not persisted immediately)\n- Fixed: Automatic migration from PluginConfiguration.PlaylistId to playlist_id.txt on first run\n- Fixed: Automatic cleanup of legacy duplicate playlists (Podcasts1, Podcasts11, etc.)\n- Pattern: Same architecture as jellyfin-smartlists-plugin — find by stored GUID, update in-place, never delete/recreate",
         "targetAbi": "10.11.0.0",

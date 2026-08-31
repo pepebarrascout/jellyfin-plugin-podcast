@@ -20,8 +20,9 @@ namespace Jellyfin.Plugin.Podcasts;
 /// - UpdateFeedsTask: IScheduledTask for RSS feed updates (appears in Dashboard > Scheduled Tasks).
 /// - GeneratePlaylistTask: IScheduledTask for auto-playlist generation.
 /// - AutoDeleteTask: IScheduledTask for auto-deletion processing.
+/// - ScanLibraryTask: IScheduledTask for forcing Jellyfin to scan the podcast folder.
 ///
-/// The 3 scheduled tasks appear under the "Podcasts" category in Jellyfin's dashboard.
+/// The 4 scheduled tasks appear under the "Podcasts" category in Jellyfin's dashboard.
 /// Users configure their schedule from the Jellyfin Scheduled Tasks UI.
 /// </summary>
 public class PodcastsPluginServiceRegistrator : IPluginServiceRegistrator
@@ -66,5 +67,6 @@ public class PodcastsPluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<IScheduledTask, UpdateFeedsTask>();
         serviceCollection.AddSingleton<IScheduledTask, GeneratePlaylistTask>();
         serviceCollection.AddSingleton<IScheduledTask, AutoDeleteTask>();
+        serviceCollection.AddSingleton<IScheduledTask, ScanLibraryTask>();
     }
 }
