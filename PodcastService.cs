@@ -16,6 +16,7 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Playlists;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Playlists;
 using Microsoft.Extensions.Logging;
 using TagFile = TagLib.File;
@@ -38,6 +39,7 @@ public class PodcastService
     private readonly IUserManager _userManager;
     private readonly IUserDataManager _userDataManager;
     private readonly MediaBrowser.Controller.Providers.IProviderManager _providerManager;
+    private readonly IFileSystem _fileSystem;
     private readonly string _pluginDataPath;
     private readonly string _episodeDataPath;
     private readonly string _deletedEpisodesPath;
@@ -87,6 +89,7 @@ public class PodcastService
         IUserManager userManager,
         IUserDataManager userDataManager,
         MediaBrowser.Controller.Providers.IProviderManager providerManager,
+        IFileSystem fileSystem,
         string pluginDataPath)
     {
         _logger = logger;
@@ -96,6 +99,7 @@ public class PodcastService
         _userManager = userManager;
         _userDataManager = userDataManager;
         _providerManager = providerManager;
+        _fileSystem = fileSystem;
         _pluginDataPath = pluginDataPath;
         _episodeDataPath = Path.Combine(pluginDataPath, "episode-data.xml");
         _deletedEpisodesPath = Path.Combine(pluginDataPath, "deleted-episodes.json");
@@ -872,23 +876,118 @@ public class PodcastService
     }
 
     /// <summary>
-    /// Triggers Jellyfin's library scan so it detects new podcast episode files
-    /// downloaded by the plugin and adds them to the database.
-    /// Uses ILibraryManager.ValidateMediaLibrary with a Progress reporter.
+    /// Triggers a TARGETED library scan that scans ONLY the podcast folder
+    /// (the "Podcasts" subfolder inside the music library) for new episode files
+    /// downloaded by the plugin. This is much faster than a full library scan
+    /// and avoids re-scanning movies, TV shows, and other libraries.
+    ///
+    /// Approach:
+    /// 1. Find the "Podcasts" folder as a BaseItem in Jellyfin's library DB
+    ///    using ILibraryManager.FindByPath(path, isFolder=true).
+    /// 2. If found, call Folder.ValidateChildren on it, which recursively scans
+    ///    only the contents of that folder for new files. This is the
+    ///    "scan only this folder" operation the user wants.
+    /// 3. If the "Podcasts" folder is not yet in Jellyfin's library DB
+    ///    (e.g. first install, or music library never scanned), fall back to
+    ///    scanning the parent music library folder via ValidateChildren so
+    ///    the "Podcasts" folder gets discovered and indexed. This is more
+    ///    targeted than ValidateMediaLibrary (which scans ALL libraries:
+    ///    movies, TV, music, etc.) — only the music library is scanned.
+    /// 4. As a last-resort fallback, if neither the podcast folder nor the
+    ///    music library can be located, fall back to the full library scan
+    ///    via ILibraryManager.ValidateMediaLibrary.
     /// </summary>
     public async Task ScanPodcastLibraryAsync(IProgress<double>? progress = null)
     {
         var podcastPath = GetPodcastBasePath();
-        _logger.LogInformation("Scanning podcast library folder: {Path}", podcastPath);
+        _logger.LogInformation("Scanning podcast library folder (targeted): {Path}", podcastPath);
 
         try
         {
             progress?.Report(10);
 
-            await _libraryManager.ValidateMediaLibrary(new Progress<double>(p =>
+            // Create a DirectoryService backed by the real filesystem.
+            // MetadataRefreshOptions requires an IDirectoryService in its constructor;
+            // we cannot use the FormatterServices.GetUninitializedObject trick here
+            // because Folder.ValidateChildren actually uses DirectoryService to
+            // enumerate the filesystem (it would throw NRE if null).
+            var directoryService = new DirectoryService(_fileSystem);
+            var refreshOptions = new MetadataRefreshOptions(directoryService)
             {
-                _logger.LogDebug("Library scan progress: {Progress}%", p);
-            }), CancellationToken.None);
+                // Use Default mode: scan for new content without clobbering
+                // existing metadata. We are NOT replacing metadata or images,
+                // we are just picking up newly-downloaded episode files.
+                // NOTE: ImageRefreshMode is a property of type MetadataRefreshMode
+                // (same enum used for both metadata and image refresh in Jellyfin).
+                MetadataRefreshMode = MetadataRefreshMode.Default,
+                ImageRefreshMode = MetadataRefreshMode.Default,
+                ReplaceAllMetadata = false,
+                ReplaceAllImages = false,
+                ForceSave = false
+            };
+
+            // STEP 1: Try to find the "Podcasts" folder as a BaseItem in Jellyfin's DB.
+            var podcastFolderItem = _libraryManager.FindByPath(podcastPath, true);
+
+            if (podcastFolderItem is Folder podcastFolder)
+            {
+                // Best case: the "Podcasts" folder is already in Jellyfin's library DB.
+                // ValidateChildren recursively scans only this folder for new content,
+                // it does NOT touch the rest of the library (movies, TV, other music, etc.).
+                _logger.LogInformation(
+                    "Found podcast folder in library DB: {Name} (ID: {Id}). Scanning only this folder for new content...",
+                    podcastFolder.Name, podcastFolder.Id);
+
+                await podcastFolder
+                    .ValidateChildren(
+                        new Progress<double>(p => _logger.LogDebug("Podcast folder scan progress: {Progress}%", p)),
+                        refreshOptions,
+                        recursive: true,
+                        cancellationToken: CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                _logger.LogInformation("Targeted podcast folder scan completed");
+            }
+            else
+            {
+                // Fallback: the "Podcasts" folder exists on disk but is not yet
+                // indexed by Jellyfin. This happens on first install or if the
+                // music library has never been scanned. We need to scan the
+                // parent music library folder once so the "Podcasts" folder
+                // (and its children) get discovered and indexed.
+                _logger.LogInformation(
+                    "Podcast folder not yet in Jellyfin library DB. Locating parent music library to discover it...");
+
+                var parentMusicLibrary = FindParentMusicLibraryFolder();
+                if (parentMusicLibrary is Folder libraryFolder)
+                {
+                    _logger.LogInformation(
+                        "Found parent music library: {Name} (ID: {Id}). Scanning to discover the podcast folder...",
+                        libraryFolder.Name, libraryFolder.Id);
+
+                    await libraryFolder
+                        .ValidateChildren(
+                            new Progress<double>(p => _logger.LogDebug("Music library scan progress: {Progress}%", p)),
+                            refreshOptions,
+                            recursive: true,
+                            cancellationToken: CancellationToken.None)
+                        .ConfigureAwait(false);
+
+                    _logger.LogInformation("Parent music library scan completed (one-time fallback to discover podcast folder)");
+                }
+                else
+                {
+                    // Last resort: full library scan. This is the old behavior
+                    // from v0.0.3.5 — kept only as a defensive fallback.
+                    _logger.LogWarning(
+                        "Could not locate podcast folder or parent music library. Falling back to full library scan (ValidateMediaLibrary).");
+                    await _libraryManager
+                        .ValidateMediaLibrary(
+                            new Progress<double>(p => _logger.LogDebug("Full library scan progress: {Progress}%", p)),
+                            CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+            }
 
             progress?.Report(100);
             _logger.LogInformation("Library scan completed successfully");
@@ -898,6 +997,55 @@ public class PodcastService
             _logger.LogError(ex, "Error during library scan");
             throw;
         }
+    }
+
+    /// <summary>
+    /// Locates the parent music library folder (as a BaseItem) that contains
+    /// the podcast folder. Used as a fallback when the "Podcasts" subfolder
+    /// is not yet indexed by Jellyfin's library DB.
+    /// Returns null if no music (or mixed) library can be located.
+    /// </summary>
+    private BaseItem? FindParentMusicLibraryFolder()
+    {
+        try
+        {
+            var virtualFolders = _libraryManager.GetVirtualFolders()
+                .Where(f => f.CollectionType == CollectionTypeOptions.music || f.CollectionType == CollectionTypeOptions.mixed)
+                .ToList();
+
+            foreach (var folder in virtualFolders)
+            {
+                var locations = folder.Locations;
+                if (locations == null || !locations.Any()) continue;
+
+                var firstLocation = locations.First();
+                if (!Directory.Exists(firstLocation)) continue;
+
+                // VirtualFolderInfo.ItemId is a string representation of a Guid.
+                // Try to parse it and resolve the backing BaseItem via GetItemById.
+                if (!string.IsNullOrEmpty(folder.ItemId) && Guid.TryParse(folder.ItemId, out var folderGuid) && folderGuid != Guid.Empty)
+                {
+                    var libraryItem = _libraryManager.GetItemById(folderGuid);
+                    if (libraryItem != null)
+                    {
+                        return libraryItem;
+                    }
+                }
+
+                // Fallback: try to find by path
+                var byPath = _libraryManager.FindByPath(firstLocation, true);
+                if (byPath != null)
+                {
+                    return byPath;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not locate parent music library folder");
+        }
+
+        return null;
     }
 
     /// <summary>
