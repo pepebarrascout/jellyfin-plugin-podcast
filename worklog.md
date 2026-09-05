@@ -138,3 +138,86 @@ Stage Summary:
 - ZIP: /home/z/my-project/Zip/jellyfin-plugin-podcasts_0.0.1.8.zip (659346 bytes)
 - Release: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/tag/v0.0.1.8
 - Key fix: IUserManager is in MediaBrowser.Controller.Library namespace (not MediaBrowser.Controller.Entities)
+
+---
+Task ID: v0.0.3.6
+Agent: Super Z (Main)
+Task: Fix scan podcast library task to scan ONLY the podcast folder (not the entire Jellyfin library)
+
+Work Log:
+- Reviewed previous chat at https://chat.z.ai/s/a63011b9-7ae9-4485-b184-5537ecd50d62 for full context
+- v0.0.3.5 introduced the "Escanear biblioteca de podcasts" scheduled task, but it used ILibraryManager.ValidateMediaLibrary() which scans ALL Jellyfin libraries (movies, TV, music, etc.) — slow and unnecessary
+- User requested scan ONLY the podcast folder (the "Podcasts" subfolder inside the music library)
+- Decompiled Jellyfin.Controller 10.11.11 with ilspycmd to discover the correct API:
+  * ILibraryManager.FindByPath(string path, bool? isFolder) → returns BaseItem for a filesystem path
+  * Folder.ValidateChildren(IProgress<double>, MetadataRefreshOptions, bool recursive, bool allowRemoveRoot, CancellationToken) → recursively validates only the folder's children
+  * VirtualFolderInfo.ItemId is a string representation of a Guid (not a Guid directly)
+  * ImageRefreshMode is a PROPERTY of type MetadataRefreshMode (same enum, no separate ImageRefreshMode enum)
+- Inspected MetadataRefreshOptions and DirectoryService:
+  * MetadataRefreshOptions requires IDirectoryService in its constructor (cannot use FormatterServices.GetUninitializedObject trick because Folder.ValidateChildren actually USES DirectoryService to enumerate the filesystem)
+  * DirectoryService(IFileSystem) — constructable directly with injected IFileSystem
+- Implemented 3-tier scan strategy in PodcastService.ScanPodcastLibraryAsync:
+  1. Best case: "Podcasts" folder is already in Jellyfin library DB → call ValidateChildren on it (scans ONLY the podcast folder, fastest)
+  2. Fallback: "Podcasts" folder not yet indexed → call ValidateChildren on the parent music library folder (scans only the music library, not movies/TV/etc.) to discover the podcast folder
+  3. Last resort: full ValidateMediaLibrary (only if neither can be located)
+- Added FindParentMusicLibraryFolder() helper that:
+  * Iterates virtual folders with CollectionType=music or mixed
+  * Parses VirtualFolderInfo.ItemId (string) as Guid and calls GetItemById
+  * Falls back to FindByPath(firstLocation, true) if ItemId lookup fails
+- Injected IFileSystem (MediaBrowser.Model.IO) into PodcastService constructor and registered in PodcastsPluginServiceRegistrator
+- RefreshOptions: MetadataRefreshMode.Default, ImageRefreshMode.Default, ReplaceAllMetadata=false, ReplaceAllImages=false, ForceSave=false — only pick up new files, do not clobber existing metadata
+- Updated version 0.0.3.5 → 0.0.3.6 in:
+  * Jellyfin.Plugin.Podcasts.csproj (AssemblyVersion, FileVersion, Version)
+  * meta.json (version, changelog, timestamp 2026-09-05T18:58:38Z)
+  * manifest.json (new entry at top of versions array, targetAbi 10.11.0.0, sourceUrl with underscore in filename)
+- Compiled cleanly with dotnet 9.0.317 (0 warnings, 0 errors, TreatWarningsAsErrors=true)
+- Created ZIP with the 4 required files (DLL + logo.png + meta.json + manifest.json) with underscore in filename:
+  jellyfin-plugin-podcasts_0.0.3.6.zip (743477 bytes)
+- Calculated MD5 checksum: 5285650309D523D1EC4FB7BE04FFD737
+- Updated manifest.json checksum field with this MD5 (did NOT rebuild ZIP after — lesson learned from v0.0.3.1)
+- Verified MD5 in manifest.json matches MD5 of the ZIP file
+- Local commit: a44f6fb "v0.0.3.6: Targeted podcast folder scan (no full library scan)" (5 files changed, 180 insertions, 14 deletions)
+- Local tag: v0.0.3.6
+
+Stage Summary:
+- 5 files modified: Jellyfin.Plugin.Podcasts.csproj, PodcastService.cs, PodcastsPluginServiceRegistrator.cs, manifest.json, meta.json
+- 1 ZIP file created locally (NOT committed to repo): /home/z/my-project/jellyfin-plugin-podcast/jellyfin-plugin-podcasts_0.0.3.6.zip
+- Local commit and tag ready to push
+- AWAITING: GitHub Personal Access Token from user to push and create release
+- Once token is provided: git push origin main && git push origin v0.0.3.6, then create GitHub release with the ZIP attached
+- The 4 scheduled tasks remain the same:
+  1. Actualizar feeds RSS de podcasts
+  2. Generar lista de reproduccion de podcasts
+  3. Borrar episodios escuchados
+  4. Escanear biblioteca de podcasts (now scans ONLY the podcast folder, not the whole library)
+
+---
+Task ID: v0.0.3.6-PUBLISH
+Agent: Super Z (Main)
+Task: Push commit + tag, create GitHub release with ZIP asset, verify checksum
+
+Work Log:
+- User provided GitHub PAT (ghp_3k5... — redacted from logs)
+- Configured git remote URL with token embedded for push
+- git push origin main: 687bcce..a44f6fb main -> main (success)
+- git push origin v0.0.3.6: * [new tag] v0.0.3.6 -> v0.0.3.6 (success)
+- Created GitHub release via REST API:
+  * Release ID: 383345351
+  * HTML URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/tag/v0.0.3.6
+  * Draft: false, Prerelease: false
+- Uploaded ZIP asset (jellyfin-plugin-podcasts_0.0.3.6.zip, 743477 bytes):
+  * Download URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/download/v0.0.3.6/jellyfin-plugin-podcasts_0.0.3.6.zip
+  * State: uploaded
+- VERIFIED download URL returns HTTP 200 and 743477 bytes (matches ZIP size)
+- VERIFIED MD5 of downloaded ZIP (5285650309D523D1EC4FB7BE04FFD737) matches checksum in manifest.json
+- VERIFIED manifest.json on GitHub raw URL has version 0.0.3.6 as first entry with correct checksum 5285650309D523D1EC4FB7BE04FFD737 and timestamp 2026-09-05T18:58:38Z
+- Removed token from git remote URL for security (git remote set-url origin back to plain HTTPS)
+
+Stage Summary:
+- v0.0.3.6 fully published and verified on GitHub
+- Release URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/tag/v0.0.3.6
+- ZIP URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/download/v0.0.3.6/jellyfin-plugin-podcasts_0.0.3.6.zip
+- Manifest URL: https://raw.githubusercontent.com/pepebarrascout/jellyfin-plugin-podcast/main/manifest.json
+- MD5 checksum: 5285650309D523D1EC4FB7BE04FFD737 (matches ZIP on disk, ZIP on GitHub release, and entry in manifest.json)
+- Timestamp: 2026-09-05T18:58:38Z (different from all previous version timestamps)
+- The "Escanear biblioteca de podcasts" task now scans ONLY the podcast folder, not the whole Jellyfin library
