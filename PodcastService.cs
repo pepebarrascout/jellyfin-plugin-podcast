@@ -1464,7 +1464,7 @@ public class PodcastService
     /// Supports MP3 (ID3v2.3), M4A (iTunes atoms), OGG (Vorbis comments), and other formats.
     /// Clears ALL existing metadata fields and sets only the required ones.
     /// Preserves embedded cover art (pictures) if the file already has any.
-    /// Fields set: Title, Artist (podcast name), Album Artist (Podcast), Album (podcast name), Year, Genre (Podcast).
+    /// Fields set: Title, Artist (podcast name), Album Artist (Podcasts), Album (podcast name), Year, Genre (Podcast).
     /// </summary>
     private async Task WriteAudioMetadataAsync(string filePath, string episodeTitle, string podcastName, DateTime publishedDate)
     {
@@ -1499,7 +1499,7 @@ public class PodcastService
             // Now set only the required fields
             file.Tag.Title = episodeTitle;
             file.Tag.Performers = new[] { podcastName };
-            file.Tag.AlbumArtists = new[] { "Podcast" };
+            file.Tag.AlbumArtists = new[] { "Podcasts" };
             file.Tag.Album = podcastName;
             file.Tag.Year = (uint)publishedDate.Year;
             file.Tag.Genres = new[] { "Podcast" };
