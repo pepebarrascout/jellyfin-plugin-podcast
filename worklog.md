@@ -221,3 +221,57 @@ Stage Summary:
 - MD5 checksum: 5285650309D523D1EC4FB7BE04FFD737 (matches ZIP on disk, ZIP on GitHub release, and entry in manifest.json)
 - Timestamp: 2026-09-05T18:58:38Z (different from all previous version timestamps)
 - The "Escanear biblioteca de podcasts" task now scans ONLY the podcast folder, not the whole Jellyfin library
+
+---
+Task ID: v0.0.3.7
+Agent: Super Z (Main)
+Task: Change ID3 TPE2 (Album Artist) tag from "Podcast" (singular) to "Podcasts" (plural) and publish v0.0.3.7
+
+Work Log:
+- User requested: change ID3 TPE2 (Album Artist) tag from "Podcast" to "Podcasts" (plural) for consistency with the folder name ("Podcasts") and playlist name ("Podcasts")
+- Repository had been removed from local disk in another session; re-cloned from GitHub
+- .NET SDK 9.0.317 was no longer installed; re-installed .NET SDK 9.0.318 via dotnet-install.sh
+- Changed global.json rollForward from "disable" to "latestPatch" so the build works with 9.0.318 (was pinned to 9.0.317 only)
+- Single-line change in PodcastService.cs line 1502:
+  * OLD: file.Tag.AlbumArtists = new[] { "Podcast" };
+  * NEW: file.Tag.AlbumArtists = new[] { "Podcasts" };
+- Updated docstring of WriteAudioMetadataAsync to reflect "Album Artist (Podcasts)" instead of "Album Artist (Podcast)"
+- Verified the change is in the compiled DLL via ilspycmd decompilation:
+  * "file.Tag.AlbumArtists = new string[1] { "Podcasts" };" confirmed in DLL
+- Bumped version 0.0.3.6 -> 0.0.3.7 in:
+  * Jellyfin.Plugin.Podcasts.csproj (AssemblyVersion, FileVersion, Version)
+  * meta.json (version, changelog, timestamp 2026-09-09T01:20:14Z)
+  * manifest.json (new entry at top of versions array, targetAbi 10.11.0.0, sourceUrl with underscore in filename)
+- Compiled cleanly with dotnet 9.0.318 (0 warnings, 0 errors, TreatWarningsAsErrors=true)
+- Created ZIP with the 4 required files (DLL + logo.png + meta.json + manifest.json) with underscore in filename:
+  jellyfin-plugin-podcasts_0.0.3.7.zip (743488 bytes)
+- Calculated MD5 checksum: 2ADC3B3CA4C033FBCC4DD2C595075E53
+- Updated manifest.json checksum field with this MD5 (did NOT rebuild ZIP after — lesson learned from v0.0.3.1)
+- Verified MD5 in manifest.json matches MD5 of the ZIP file on disk
+- Local commit: eb7aa46 "v0.0.3.7: ID3 TPE2 (Album Artist) 'Podcast' -> 'Podcasts' (plural)" (5 files changed, 17 insertions, 9 deletions)
+- Local tag: v0.0.3.7
+- User provided GitHub PAT (ghp_3k5... — redacted from logs)
+- Configured git remote URL with token embedded for push
+- git push origin main: 128425c..eb7aa46 main -> main (success)
+- git push origin v0.0.3.7: * [new tag] v0.0.3.7 -> v0.0.3.7 (success)
+- Created GitHub release via REST API:
+  * Release ID: 385163236
+  * HTML URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/tag/v0.0.3.7
+  * Draft: false, Prerelease: false
+- Uploaded ZIP asset (jellyfin-plugin-podcasts_0.0.3.7.zip, 743488 bytes):
+  * Download URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/download/v0.0.3.7/jellyfin-plugin-podcasts_0.0.3.7.zip
+  * State: uploaded
+- VERIFIED download URL returns HTTP 200 and 743488 bytes (matches ZIP size)
+- VERIFIED MD5 of downloaded ZIP (2ADC3B3CA4C033FBCC4DD2C595075E53) matches checksum in manifest.json
+- VERIFIED manifest.json on GitHub raw URL has version 0.0.3.7 as first entry with correct checksum 2ADC3B3CA4C033FBCC4DD2C595075E53 and timestamp 2026-09-09T01:20:14Z
+- Removed token from git remote URL for security
+
+Stage Summary:
+- v0.0.3.7 fully published and verified on GitHub
+- Release URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/tag/v0.0.3.7
+- ZIP URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/download/v0.0.3.7/jellyfin-plugin-podcasts_0.0.3.7.zip
+- Manifest URL: https://raw.githubusercontent.com/pepebarrascout/jellyfin-plugin-podcast/main/manifest.json
+- MD5 checksum: 2ADC3B3CA4C033FBCC4DD2C595075E53 (matches ZIP on disk, ZIP on GitHub release, and entry in manifest.json)
+- Timestamp: 2026-09-09T01:20:14Z (different from all previous version timestamps)
+- Single behavioral change: ID3 TPE2 (Album Artist) tag now writes "Podcasts" (plural) instead of "Podcast" (singular)
+- IMPORTANT: applies to NEW downloads only — existing MP3s retain the previous "Podcast" tag until manually re-tagged
