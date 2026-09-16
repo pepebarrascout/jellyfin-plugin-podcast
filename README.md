@@ -4,14 +4,16 @@
         <img alt="Logo" src="https://raw.githubusercontent.com/pepebarrascout/jellyfin-plugin-podcast/main/logo.png" height="180"/><br />
         <a href="https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases"><img alt="Total GitHub Downloads" src="https://img.shields.io/github/downloads/pepebarrascout/jellyfin-plugin-podcast/total?color=9b59b6&label=descargas"/></a>
         <a href="https://github.com/pepebarrascout/jellyfin-plugin-podcast/issues"><img alt="GitHub Issues" src="https://img.shields.io/github/issues/pepebarrascout/jellyfin-plugin-podcast?color=9b59b6"/></a>
-        <a href="https://jellyfin.org/"><img alt="Jellyfin Version" src="https://img.shields.io/badge/Jellyfin-10.11.x-blue.svg"/></a>
+        <a href="https://jellyfin.org/"><img alt="Jellyfin Version" src="https://img.shields.io/badge/Jellyfin-12.0%2B-blue.svg"/></a>
         <a href="https://github.com/pepebarrascout/jellyfin-plugin-podcast"><img alt="RSS" src="https://img.shields.io/badge/RSS-Podcasts-orange?logo=rss&logoColor=white"/></a>
     </p>
 </div>
 
 > **Gestiona tus suscripciones a podcasts** desde Jellyfin. Suscríbete a feeds RSS, descarga automáticamente nuevos episodios, elimina contenido escuchado y genera listas de reproducción automáticas diarias.
 
-**Requiere Jellyfin versión `10.11.0` o superior.**
+**Compatible con Jellyfin versión `12.0` y `12.1` (requiere `12.0.0` o superior).**
+
+> ⚠️ **Importante para usuarios de Jellyfin 10.11.x**: La versión `0.0.3.7` (compilada contra Jellyfin 10.11.11) es la última compatible con Jellyfin 10.11.x. A partir de la versión `0.0.3.8`, el plugin requiere Jellyfin 12.0+ porque Jellyfin 12 cambió el framework a .NET 10 y convirtió las playlists en tablas relacionales (breaking changes). Si aún usas Jellyfin 10.11.x, instala la versión `0.0.3.7` desde [Releases](https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/tag/v0.0.3.7).
 
 ---
 
@@ -107,8 +109,9 @@ El plugin ejecuta las siguientes tareas automáticamente en segundo plano:
 | Hora | Tarea | Descripción |
 |---|---|---|
 | 🕛 **00:00** | Actualización de feeds | Descarga nuevos episodios según la frecuencia configurada |
-| 🕐 **01:00** | Playlist automática | Genera `playlist.xml` con episodios no escuchados en orden cronológico |
+| 🕐 **01:00** | Playlist automática | Genera una playlist nativa de Jellyfin con episodios no escuchados en orden cronológico |
 | 🕑 **02:00** | Auto-borrado | Elimina episodios escuchados hace más de 2 días |
+| ⏰ *Configurable* | Escanear biblioteca de podcasts | Escanea SOLO la carpeta de podcasts (no toda la biblioteca) para detectar archivos nuevos |
 
 ---
 
@@ -160,7 +163,7 @@ El plugin ejecuta las siguientes tareas automáticamente en segundo plano:
 ## 🛠️ Compilación
 
 ### Requisitos Previos
-- [.NET SDK 9.0](https://dotnet.microsoft.com/download/dotnet/9.0)
+- [.NET SDK 10.0](https://dotnet.microsoft.com/download/dotnet/10.0) (requerido por Jellyfin 12.x)
 - Git
 
 ### Pasos para Compilar
@@ -174,7 +177,7 @@ cd jellyfin-plugin-podcast
 dotnet publish Jellyfin.Plugin.Podcasts/Jellyfin.Plugin.Podcasts.csproj -c Release
 
 # Los archivos compilados estarán en:
-# Jellyfin.Plugin.Podcasts/bin/Release/net9.0/publish/
+# Jellyfin.Plugin.Podcasts/bin/Release/net10.0/publish/
 ```
 
 Los archivos `.dll` resultantes se copian a la carpeta de plugins de Jellyfin.

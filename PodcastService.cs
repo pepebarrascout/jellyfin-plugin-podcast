@@ -1103,7 +1103,6 @@ public class PodcastService
 
             var basePath = GetPodcastBasePath();
             var itemIds = new List<Guid>();
-            var itemPaths = new Dictionary<Guid, string>();
             var skippedCount = 0;
             var userDataSkippedCount = 0;
 
@@ -1168,7 +1167,6 @@ public class PodcastService
                     }
 
                     itemIds.Add(item.Id);
-                    itemPaths[item.Id] = fullPath;
                 }
                 catch (Exception ex)
                 {
@@ -1184,9 +1182,11 @@ public class PodcastService
                 return;
             }
 
-            // Build LinkedChild array
+            // Build LinkedChild array.
+            // NOTE: In Jellyfin 12.x, LinkedChild.Path is obsolete — only ItemId is used.
+            // Playlists are now relational (LinkedChildren table) and resolve items by Guid.
             var linkedChildren = itemIds
-                .Select(id => new LinkedChild { ItemId = id, Path = itemPaths[id] })
+                .Select(id => new LinkedChild { ItemId = id })
                 .ToArray();
 
             // STEP 1: Read playlist GUID from file (NOT from PluginConfiguration - that can be stale/cached).
