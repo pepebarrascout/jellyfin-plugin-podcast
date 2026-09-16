@@ -275,3 +275,100 @@ Stage Summary:
 - Timestamp: 2026-09-09T01:20:14Z (different from all previous version timestamps)
 - Single behavioral change: ID3 TPE2 (Album Artist) tag now writes "Podcasts" (plural) instead of "Podcast" (singular)
 - IMPORTANT: applies to NEW downloads only — existing MP3s retain the previous "Podcast" tag until manually re-tagged
+
+---
+Task ID: v0.0.3.8
+Agent: Super Z (Main)
+Task: Migrate plugin to Jellyfin 12.1 compatibility (also works with 12.0)
+
+Work Log:
+- User requested: verify code works with Jellyfin 12.1 (latest stable), fix if needed, update README, publish
+- Repository had been removed from local disk; re-cloned from GitHub
+- Researched Jellyfin 12.x via NuGet API:
+  * Jellyfin.Controller 12.1.0 available on NuGet (released 2026-09-15)
+  * Jellyfin 12.0.0 released 2026-09-08 (major version with breaking changes)
+  * Jellyfin 12.1.0 is a minor release with bugfixes (released 2026-09-15)
+- Fetched Jellyfin 12.0 and 12.1 release notes from GitHub API (authenticated to avoid rate limit)
+- Identified key breaking changes in Jellyfin 12.0:
+  1. Target framework changed from .NET 9.0 to .NET 10.0
+  2. Playlists and collections are now relational (LinkedChildren is a DB table)
+  3. LinkedChild.Path is [Obsolete("Use ItemId instead")]
+  4. Emby.Naming renamed to Jellyfin.Naming (transitive dependency, no action needed)
+  5. Legacy route prefixes removed (/emby/* and /mediabrowser/*) — not used by this plugin
+  6. Legacy authorization disabled by default — not used by this plugin
+- Checked official Jellyfin plugin repo (https://repo.jellyfin.org/files/plugin/manifest.json):
+  * 36 plugins already use targetAbi=12.0.0.0
+  * 7 plugins use targetAbi=12.1.0.0 (for 12.1-specific features)
+  * Decided to use 12.0.0.0 for maximum compatibility (works on both 12.0 and 12.1)
+- Installed .NET SDK 10.0.401 via dotnet-install.sh
+- Updated global.json: SDK 9.0.317 -> 10.0.401, rollForward=latestPatch
+- Updated Jellyfin.Plugin.Podcasts.csproj:
+  * TargetFramework: net9.0 -> net10.0
+  * Jellyfin.Common: 10.11.11 -> 12.1.0
+  * Jellyfin.Controller: 10.11.11 -> 12.1.0
+  * Jellyfin.Model: 10.11.11 -> 12.1.0
+- First compilation attempt: 1 error
+  * PodcastService.cs(1189,62): error CS0618: 'LinkedChild.Path' is obsolete: 'Use ItemId instead'
+  * This is in GenerateAutoPlaylistAsync, line 1189
+- Fixed by removing Path assignment from LinkedChild construction:
+  * OLD: new LinkedChild { ItemId = id, Path = itemPaths[id] }
+  * NEW: new LinkedChild { ItemId = id }
+- Also removed the now-unused itemPaths dictionary (3 references: declaration, assignment, consumption)
+- Recompiled: 0 warnings, 0 errors (TreatWarningsAsErrors=true)
+- Verified no other obsolete APIs by building with TreatWarningsAsErrors=false: still 0 warnings
+- Installed ilspycmd 11.0.0.9375 and decompiled Jellyfin.Controller 12.1.0 to verify all APIs:
+  * ILibraryManager.FindByPath, ValidateMediaLibrary, GetVirtualFolders, GetItemById — all present
+  * Folder.ValidateChildren(IProgress<double>, MetadataRefreshOptions, bool recursive, bool allowRemoveRoot, CancellationToken) — same signature
+  * IProviderManager.RefreshSingleItem(BaseItem, MetadataRefreshOptions, CancellationToken) — same signature
+  * MetadataRefreshOptions(IDirectoryService) constructor — present
+  * DirectoryService(IFileSystem) constructor — present
+  * IPlaylistManager.CreatePlaylist(PlaylistCreationRequest) — present
+  * BaseItem.UpdateToRepositoryAsync(ItemUpdateType, CancellationToken) — present
+  * LinkedChild class: Path [Obsolete], LibraryItemId [Obsolete], ItemId is the current API
+- Bumped version 0.0.3.7 -> 0.0.3.8 in:
+  * Jellyfin.Plugin.Podcasts.csproj (AssemblyVersion, FileVersion, Version)
+  * meta.json (version, changelog, targetAbi 12.0.0.0, timestamp 2026-09-16T20:42:04Z)
+  * manifest.json (new entry at top of versions array, targetAbi 12.0.0.0, sourceUrl with underscore)
+- Updated README.md:
+  * Badge: "Jellyfin 10.11.x" -> "Jellyfin 12.0+"
+  * Requirement: "Requiere Jellyfin versión 10.11.0 o superior" -> "Compatible con Jellyfin versión 12.0 y 12.1 (requiere 12.0.0 o superior)"
+  * Added warning box for 10.11.x users pointing to v0.0.3.7 release
+  * Build prerequisites: .NET SDK 9.0 -> 10.0
+  * Build output path: net9.0 -> net10.0
+  * Updated playlist task description (no longer "playlist.xml", now native Jellyfin playlist)
+  * Added 4th scheduled task "Escanear biblioteca de podcasts" to the tasks table
+- Created ZIP with the 4 required files (DLL + logo.png + meta.json + manifest.json) with underscore:
+  jellyfin-plugin-podcasts_0.0.3.8.zip (743371 bytes)
+- Calculated MD5 checksum: 1A288BF4620FEDE251B681EEB025CED7
+- Updated manifest.json checksum field with this MD5 (did NOT rebuild ZIP after — lesson from v0.0.3.1)
+- Verified MD5 in manifest.json matches MD5 of the ZIP file on disk
+- Local commit: 7d92461 "v0.0.3.8: Jellyfin 12.1 compatibility (also works with 12.0)" (6 files changed, 32 insertions, 21 deletions)
+- Local tag: v0.0.3.8
+- Configured git remote URL with token embedded for push
+- git push origin main: 16bf194..7d92461 main -> main (success)
+- git push origin v0.0.3.8: * [new tag] v0.0.3.8 -> v0.0.3.8 (success)
+- Created GitHub release via REST API:
+  * Release ID: 390259667
+  * HTML URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/tag/v0.0.3.8
+  * Draft: false, Prerelease: false
+- Uploaded ZIP asset (jellyfin-plugin-podcasts_0.0.3.8.zip, 743371 bytes):
+  * Download URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/download/v0.0.3.8/jellyfin-plugin-podcasts_0.0.3.8.zip
+  * State: uploaded
+- VERIFIED download URL returns HTTP 200 and 743371 bytes (matches ZIP size)
+- VERIFIED MD5 of downloaded ZIP (1A288BF4620FEDE251B681EEB025CED7) matches checksum in manifest.json
+- VERIFIED manifest.json on GitHub raw URL has version 0.0.3.8 as first entry with correct checksum, targetAbi 12.0.0.0, and timestamp 2026-09-16T20:42:04Z
+- VERIFIED README.md on GitHub raw URL shows "Jellyfin 12.0+" badge and "Compatible con Jellyfin versión 12.0 y 12.1" text
+- Removed token from git remote URL for security
+
+Stage Summary:
+- v0.0.3.8 fully published and verified on GitHub
+- Release URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/tag/v0.0.3.8
+- ZIP URL: https://github.com/pepebarrascout/jellyfin-plugin-podcast/releases/download/v0.0.3.8/jellyfin-plugin-podcasts_0.0.3.8.zip
+- Manifest URL: https://raw.githubusercontent.com/pepebarrascout/jellyfin-plugin-podcast/main/manifest.json
+- MD5 checksum: 1A288BF4620FEDE251B681EEB025CED7 (matches ZIP on disk, ZIP on GitHub release, and entry in manifest.json)
+- Timestamp: 2026-09-16T20:42:04Z (different from all previous version timestamps)
+- targetAbi: 12.0.0.0 (compatible with Jellyfin 12.0 and 12.1)
+- CRITICAL: This version requires Jellyfin 12.0+. Users on 10.11.x should use v0.0.3.7.
+- Only 1 code change was needed (LinkedChild.Path removal). All other APIs used by the plugin are unchanged between Jellyfin 10.11 and 12.1.
+- The 4 scheduled tasks remain: Update feeds, Generate playlist, Auto-delete, Scan library (targeted to podcast folder only)
+- ID3 tag behavior unchanged from v0.0.3.7: TPE2 (Album Artist) = "Podcasts" (plural)
